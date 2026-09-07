@@ -41,7 +41,7 @@ jobs:
       - run: pip install numpy
       - name: o sitio e valido
         run: PYTHONPATH=. python3 -m rtls.sitio ${{ matrix.sitio.arq }}
-      - name: suite (22 alvos)
+      - name: suite (23 alvos)
         env:
           RTLS_SITIO: ${{ matrix.sitio.arq }}
         run: PYTHONPATH=. python3 -m testes.roda_tudo -v

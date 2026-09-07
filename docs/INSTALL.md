@@ -189,6 +189,15 @@ vêm com `CONFIG_BT_NIMBLE_EXT_ADV` e `EXT_SCAN` **desligados**. Sem *extended
 scan* (BLE 5.0), a C3 não vê nada que uma placa BLE 4.2 já não veja — e aí ela
 não tem por que existir no projeto.
 
+**O alvo já vem fixado** em `sdkconfig.defaults` (`CONFIG_IDF_TARGET="esp32c3"`).
+Não tire essa linha. O default do IDF é `esp32` — a ESP32 clássica, que **não tem
+BLE 5.0**; com ela `SOC_BLE_50_SUPPORTED=n`, o menu inteiro do BLE 5 desaparece do
+Kconfig e as três linhas de `EXT_ADV` do `sdkconfig.defaults` são descartadas **em
+silêncio**. O build então vai até 97% e morre em `malha.c` com `implicit
+declaration of function 'ble_gap_ext_adv_start'` — um erro que fala de função
+faltando, nunca de alvo errado. Medido: era exatamente isso que acontecia num
+clone novo antes de a linha existir.
+
 ### 4.2 Credenciais
 
 ```bash

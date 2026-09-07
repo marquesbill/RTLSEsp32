@@ -157,6 +157,7 @@ sua máquina e não está versionado.
 | `confere_repo` → `VERSIONADO INDEVIDO` | `git add -f` passou por cima do `.gitignore` | `git rm --cached <arquivo>` — e veja a §6 se ele já foi *empurrado* |
 | `confere_repo` → `PROTOCOLO DIVERGE` | Cabeçalho mexido em um lado só | Mexa nos dois; e leia a §5.4 antes de gravar |
 | `confere_citacoes` → `ORFA` | Referência no `.bib` que nenhum `.md` cita | Cite ou remova |
+| `ancora` falhou em `malha.c` com `ble_gap_ext_adv_*` implícita | `sdkconfig` velho, configurado para outro alvo | `rm -rf firmware/ancora-c3/{sdkconfig,build}` — o `CONFIG_IDF_TARGET` do `sdkconfig.defaults` só entra quando o `sdkconfig` **não existe** |
 | `ancora` falhou e `alvo` passou | Só o C3 | Reproduza com `build.sh build` |
 | Os dois firmwares falharam | Quase sempre `credenciais.h` | Confira o passo `cp` |
 

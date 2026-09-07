@@ -1,3 +1,11 @@
+# Alvo fixo. NAO e redundante com o `idf.py set-target` nem com o `target:` da CI:
+# sem esta linha, um clone novo configura para "esp32" (o default do IDF), e a
+# ESP32 classica nao tem BLE 5.0 -> SOC_BLE_50_SUPPORTED=n -> o menu inteiro do
+# BLE 5 some do Kconfig e as tres linhas de EXT_ADV abaixo sao DESCARTADAS EM
+# SILENCIO. O build so morre 97% depois, em malha.c, com "implicit declaration of
+# ble_gap_ext_adv_start" — um erro que nao fala do alvo. MEDIDO nesta caixa.
+CONFIG_IDF_TARGET="esp32c3"
+
 # BLE 5.0 extended scan — a razao de a C3 existir neste projeto. As libs
 # pre-compiladas do core Arduino trazem EXT_ADV/EXT_SCAN DESLIGADOS, por isso
 # este firmware e ESP-IDF e nao Arduino.
