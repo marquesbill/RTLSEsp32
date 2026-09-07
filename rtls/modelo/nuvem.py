@@ -53,11 +53,19 @@ def _mascara_planta():
     return G, xs[0], ys[0]
 
 
-def encaixa(P):
-    """-> (sobreposicao, ix, sx, cx, iy, sy, cy):  x = sx*P[:,ix]+cx,  y = sy*P[:,iy]+cy."""
+def encaixa(P, todos=False):
+    """-> (sobreposicao, ix, sx, cx, iy, sy, cy):  x = sx*P[:,ix]+cx,  y = sy*P[:,iy]+cy.
+
+    `todos=True` devolve as OITO hipoteses ordenadas por sobreposicao, em vez de
+    so a vencedora. Existe porque a distancia entre a 1a e a 2a e a unica medida
+    honesta de "o encaixe e unico": com pegada simetrica varias empatam, e qual
+    delas o argmax devolve depende de ruido de ponto flutuante — muda entre
+    versoes do scipy. Quem quiser saber se pode confiar no encaixe pergunta pela
+    margem, nao pela vencedora.
+    """
     M, x0, y0 = _mascara_planta()
     alto = P[(P[:, 1] > 0.15) & (P[:, 1] < 2.30)]        # sem piso e sem teto
-    melhor = None
+    cands = []
     for ix, iy in ((2, 0), (0, 2)):
         for sx in (1, -1):
             for sy in (1, -1):
@@ -70,9 +78,9 @@ def encaixa(P):
                 j = np.unravel_index(np.argmax(c), c.shape)
                 cy = y0 - (bv[0] + (j[0] - M.shape[0] + 1) * PX)
                 cx = x0 - (bu[0] + (j[1] - M.shape[1] + 1) * PX)
-                if melhor is None or c[j] > melhor[0]:
-                    melhor = (float(c[j]), ix, sx, float(cx), iy, sy, float(cy))
-    return melhor
+                cands.append((float(c[j]), ix, sx, float(cx), iy, sy, float(cy)))
+    cands.sort(key=lambda t: -t[0])
+    return cands if todos else cands[0]
 
 
 def planta(P):
@@ -122,20 +130,44 @@ def demo():
 
     # (2) o mesmo sitio INTEIRO. Se a pegada for simetrica, o encaixe EMPATA e
     # nao ha correlacao que desempate — e por isso que 09 §9.2 manda usar a cor
-    # ou a trajetoria da camera. O teste nao exige acerto: exige que o empate
-    # apareca, senao o proximo a mexer aqui vai confiar num numero que nao existe.
+    # ou a trajetoria da camera.
+    #
+    # O que se mede aqui e o EMPATE, nao a vencedora. A versao anterior deste
+    # teste exigia que a hipotese devolvida fosse a ERRADA (erro > 5 cm) — e
+    # isso e testar o desempate, que e arbitrario: entre hipoteses de mesma
+    # nota, qual sai no topo depende de ruido de ponto flutuante do
+    # fftconvolve. MEDIDO: com scipy 1.17 sai uma, com scipy 1.18 sai outra, e
+    # a segunda por acaso e a certa — a CI ficou vermelha em 3 dos 4 jobs sem
+    # que nada no encaixe tivesse mudado.
+    #
+    # A margem entre a 1a e a 2a hipotese, essa, e propriedade da geometria e
+    # nao do desempate. MEDIDO no sitio de exemplo:
+    #   'Casa Exemplo' inteiro (simetrico) -> 4 hipoteses em 119704.0, 2a/1a = 1.000000
+    #   'Casa Exemplo' sem um comodo (em L)  -> 2a/1a = 0.767
+    #   'Galpao Teste' (testes/sitio_outro)  -> 2a/1a = 0.960  <- a margem mais APERTADA
+    # O corte esta em 0.999: o empate fica a 1e-7 dele (ruido de fp) e o caso
+    # real mais apertado, a 3,9%. Se mexer no corte, e o 0.960 que manda. A
+    # checagem tambem nao e vazia — os dois sitios da CI caem em ramos
+    # diferentes, entao as duas metades sao exercitadas a cada merge.
     P, q = _sintetica(todos)
-    s, ix, sx, cx, iy, sy, cy = encaixa(P)
+    cands = encaixa(P, todos=True)
+    empatadas = [c for c in cands if c[0] > cands[0][0] * 0.999]
     simetrica = (M == M[::-1, :]).mean() > 0.99 or (M == M[:, ::-1]).mean() > 0.99
     e = float(np.abs(planta(P) - q).max())
     if simetrica:
-        assert e > 0.05, ("planta simetrica encaixou exato — bom demais para ser "
-                          "verdade, confira a mascara", e)
-        print(f"'{PL.NOME}' tem pegada simetrica: o encaixe empata "
-              f"(erro {e:.2f} m). Desempate pela cor ou pela camera — 09 §9.2.")
+        assert len(empatadas) >= 2, (
+            "pegada simetrica deveria dar empate e deu encaixe unico — "
+            "confira a mascara", [c[0] for c in cands[:3]])
+        print(f"'{PL.NOME}' tem pegada simetrica: {len(empatadas)} hipoteses "
+              f"empatam em {cands[0][0]:.0f} (2a/1a = {cands[1][0] / cands[0][0]:.6f}). "
+              f"Desempate pela cor ou pela camera — 09 §9.2. "
+              f"A vencedora sorteada errou {e * 100:.0f} cm; o numero e do sorteio, nao do metodo.")
     else:
+        assert len(empatadas) == 1, ("pegada assimetrica deveria ter encaixe unico",
+                                     [c[0] for c in cands[:3]])
         assert e < 0.05, e
-        print(f"'{PL.NOME}' e assimetrico: encaixe unico, erro maximo {e * 100:.1f} cm")
+        print(f"'{PL.NOME}' e assimetrico: encaixe unico "
+              f"(2a/1a = {cands[1][0] / cands[0][0]:.3f}), erro maximo {e * 100:.1f} cm")
 
     if os.path.exists(PLY):
         P, C = ler(); s, ix, sx, cx, iy, sy, cy = encaixa(P)
