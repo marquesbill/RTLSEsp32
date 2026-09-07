@@ -351,6 +351,12 @@ modelo em produção como controle: `média(ganho por ponto) − EP > 0,5 dB`, u
 Depois de **qualquer** mudança no sítio: `--escreve` no gerador e a suíte de
 novo. A CI reprova o `.h` desatualizado comparando byte a byte.
 
+O que cada mudança **obriga** a refazer — regerar o `.h`, regravar o alvo,
+regravar as âncoras, e se os rótulos antigos continuam valendo — está na matriz
+de acoplamento em [CI-CD §5.3](CI-CD.md). A fixação física e as regras que o
+modelo enxerga (altura única, orientação, 30 cm de metal) estão em
+[hardware/montagem.md](../hardware/montagem.md).
+
 ## 10. Quando der errado
 
 | sintoma | causa provável | o que fazer |

@@ -159,12 +159,19 @@ Estes cinco não são estilo; cada um saiu de um erro que custou dias.
 
 A versão 1.0 sai quando, numa máquina limpa e sem hardware:
 
-1. `python3 -m testes.roda_tudo` fecha com **0 falhas**;
+1. `python3 -m testes.roda_tudo` fecha com **0 falhas** — e fecha **nos dois
+   sítios**, `sitios/exemplo.json` e `testes/sitio_outro.json`. Um sítio só
+   provaria que o código roda; dois provam que ele não decorou o primeiro;
 2. `ferramentas/confere_citacoes.py` acusa **0 órfãs e 0 faltando**;
-3. `INSTALL.md` leva do zero ao primeiro ponto sem consultar outro documento;
-4. `sitios/exemplo.json` é o único sítio versionado;
-5. toda user story de prioridade P0 tem critério de aceite verde
-   ([user-stories.md](user-stories.md)).
+3. `ferramentas/confere_repo.py` acusa **0 links mortos** e **0 identificadores
+   reais** (MAC de fabricante, IP de máquina, sítio real) no índice do git;
+4. `INSTALL.md` leva do zero ao primeiro ponto sem consultar outro documento;
+5. `sitios/exemplo.json` é o único sítio versionado — o fixture de teste mora em
+   `testes/`, justamente para não violar este critério;
+6. toda user story de prioridade P0 tem critério de aceite verde
+   ([user-stories.md](user-stories.md));
+7. a CI ([CI-CD.md](CI-CD.md)) roda sozinha os itens 1–3 e compila os dois
+   firmwares sem placa nenhuma.
 
 ## 10. Perguntas abertas
 
