@@ -36,8 +36,16 @@ pip install numpy
 PYTHONPATH=. python3 -m testes.roda_tudo
 ```
 
-Esperado: **23 ok, 0 falha(s)**, em torno de 50 s. Python 3.10 ou mais novo;
-`numpy` é a única dependência obrigatória.
+Esperado: **0 falha(s)**, em torno de 50 s. Python 3.10 ou mais novo; `numpy` é a
+única dependência **obrigatória**, e é uma promessa que a CI cobra.
+
+Com só o `numpy` a saída é `21 ok, 0 falha(s), 2 pulado(s)`: `rtls.modelo.nuvem` e
+`rtls.modelo.material` pedem `scipy` e são o caminho da nuvem de pontos, que é
+opcional por decisão (foi reprovado na transferência — [06-transferencia](matematica/06-transferencia.md)).
+`pip install scipy` os traz de volta e a saída vira `23 ok`. Pulo não é falha: o
+código de saída continua 0. E o pulo é **nominal** — só vale para `scipy`; qualquer
+outro import quebrado continua reprovando, senão um `import numpi` errado passaria
+como "pulado".
 
 Se isso passou, o sistema funciona — filtro, ajuste, campanha D-ótima, LOO,
 gerador de firmware e simulador, todos no sítio de exemplo versionado.

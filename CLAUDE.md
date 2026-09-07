@@ -8,7 +8,8 @@ Este arquivo não repete o conteúdo de lá; ele só fixa o que **não** é nego
 1. Leia [docs/SAD.md](docs/SAD.md) §2 — nove decisões estruturais, cada uma com a
    alternativa rejeitada e o custo dela. É o contexto que não se recupera lendo
    `.py`.
-2. Rode a suíte. Tem de fechar **`23 ok, 0 falha(s)`**:
+2. Rode a suíte. Tem de fechar **`0 falha(s)`** (`23 ok` com `scipy`; `21 ok,
+   2 pulado(s)` só com `numpy` — as duas são verdes):
    ```bash
    PYTHONPATH=. python3 -m testes.roda_tudo
    ```
@@ -42,5 +43,5 @@ PYTHONPATH=. python3 -m testes.roda_tudo                                  # sít
 RTLS_SITIO=testes/sitio_outro.json PYTHONPATH=. python3 -m testes.roda_tudo  # o que importa
 ```
 
-Os dois têm de fechar em `23 ok, 0 falha(s)`. O que mais a CI faz — e a matriz de
+Os dois têm de fechar em `0 falha(s)`. O que mais a CI faz — e a matriz de
 acoplamento do deploy — está em [docs/CI-CD.md](docs/CI-CD.md).

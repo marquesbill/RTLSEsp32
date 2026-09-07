@@ -28,7 +28,9 @@ pip install numpy
 PYTHONPATH=. python3 -m testes.roda_tudo
 ```
 
-Esperado: **`23 ok, 0 falha(s)`**. Isso roda o sistema inteiro — modelo,
+Esperado: **`0 falha(s)`**. Com só o `numpy` saem `21 ok, 2 pulado(s)` — os dois
+pulados são o caminho da nuvem de pontos, que é opcional e pede `scipy`; instale-o
+se quiser os 23. O que conta é a contagem de falhas, e ela tem de ser zero. Isso roda o sistema inteiro — modelo,
 estimação, filtro, campanha, geração de firmware — em dado sintético, sem placa,
 sem rede e sem nuvem. Se fechar verde, o resto é hardware.
 

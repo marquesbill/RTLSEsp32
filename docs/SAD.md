@@ -370,7 +370,7 @@ teste tem de morar ao lado da lógica que ele protege. `testes/roda_tudo.py` só
 enfileira, e o contrato é minúsculo: **levantar é a única forma de falhar**.
 
 ```bash
-PYTHONPATH=. python3 -m testes.roda_tudo             # 23 alvos, ~50 s, sem hardware
+PYTHONPATH=. python3 -m testes.roda_tudo             # 23 alvos (21 sem scipy), ~50 s, sem hardware
 PYTHONPATH=. python3 -m testes.roda_tudo sitio       # só os que casam com 'sitio'
 RTLS_SITIO=testes/sitio_outro.json PYTHONPATH=. python3 -m testes.roda_tudo  # o que importa
 ```

@@ -138,7 +138,10 @@ firmware/ancora-c3/build.sh build
 pio run -d firmware/alvo-cyd -e cyd -e painel -e campanha
 ```
 
-Esperado no passo 1, nos **dois** sítios: `23 ok, 0 falha(s)`.
+Esperado no passo 1, nos **dois** sítios: `23 ok, 0 falha(s)`. A CI instala
+`numpy scipy` de propósito — com o `scipy` presente nada é pulado e os 23 alvos
+rodam de verdade. Na sua máquina, sem `scipy`, o certo é `21 ok, 0 falha(s),
+2 pulado(s)`; as duas saídas são verdes.
 
 Se o passo 1 passa e a CI reprova, a diferença está no ambiente — quase sempre
 uma versão de Python (a matriz cobre 3.10 e 3.13) ou um arquivo que existe na
@@ -156,6 +159,8 @@ sua máquina e não está versionado.
 | `confere_repo` → `LINK MORTO` | Doc aponta para arquivo que não existe (ainda) | Crie o arquivo ou tire o link — as duas são respostas válidas |
 | `confere_repo` → `VERSIONADO INDEVIDO` | `git add -f` passou por cima do `.gitignore` | `git rm --cached <arquivo>` — e veja a §6 se ele já foi *empurrado* |
 | `confere_repo` → `PROTOCOLO DIVERGE` | Cabeçalho mexido em um lado só | Mexa nos dois; e leia a §5.4 antes de gravar |
+| `suite` vermelha em `ModuleNotFoundError: scipy` | Alguém tornou o `scipy` obrigatório no núcleo | O núcleo roda com `numpy` e nada mais (US-01). Mova o import para o caminho da nuvem ou acrescente o módulo a `OPCIONAIS` em `testes/roda_tudo.py` |
+| `ancora` → `Failed to resolve component` | Nome de componente que só existe numa faixa de versões do IDF | Peça o guarda-chuva (`driver`), não o `esp_driver_*`; a v5.4 da sua máquina aceita os dois e esconde o defeito |
 | `confere_citacoes` → `ORFA` | Referência no `.bib` que nenhum `.md` cita | Cite ou remova |
 | `ancora` falhou em `malha.c` com `ble_gap_ext_adv_*` implícita | `sdkconfig` velho, configurado para outro alvo | `rm -rf firmware/ancora-c3/{sdkconfig,build}` — o `CONFIG_IDF_TARGET` do `sdkconfig.defaults` só entra quando o `sdkconfig` **não existe** |
 | `ancora` falhou e `alvo` passou | Só o C3 | Reproduza com `build.sh build` |
