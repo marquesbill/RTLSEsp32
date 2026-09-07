@@ -190,5 +190,21 @@
     "piso_radio_dBm": -101,
     "nota_piso": ""
   },
-  "ancoras_nota": "MACs 02:...:1x sao localmente administrados (bit U/L) — nao existem."
+  "ancoras_nota": "MACs 02:...:1x sao localmente administrados (bit U/L) — nao existem.",
+  "postos": {
+    "_nota": "posto de trabalho: onde o alvo FICA quando esta no cabo USB. Nao e ancora nem ponto de campanha — e uma posicao conhecida de OPORTUNIDADE, valida so enquanto o host correspondente enxerga o dispositivo. raio = alcance do cabo + folga da bancada; e a incerteza da posicao, nao um enfeite. Ver docs/matematica/10-temporal.md e rtls/oportunidade.py.",
+    "bancada": {
+      "pos": [
+        3.5,
+        0.6,
+        0.9
+      ],
+      "raio": 1.0,
+      "hosts": [
+        "linux",
+        "mac"
+      ],
+      "nota": "um posto so, e com os dois hosts: o codigo nao pode decorar 2"
+    }
+  }
 }

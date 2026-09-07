@@ -28,9 +28,9 @@ pip install numpy
 PYTHONPATH=. python3 -m testes.roda_tudo
 ```
 
-Esperado: **`0 falha(s)`**. Com só o `numpy` saem `21 ok, 2 pulado(s)` — os dois
+Esperado: **`0 falha(s)`**. Com só o `numpy` saem `24 ok, 2 pulado(s)` — os dois
 pulados são o caminho da nuvem de pontos, que é opcional e pede `scipy`; instale-o
-se quiser os 23. O que conta é a contagem de falhas, e ela tem de ser zero. Isso roda o sistema inteiro — modelo,
+se quiser os 26. O que conta é a contagem de falhas, e ela tem de ser zero. Isso roda o sistema inteiro — modelo,
 estimação, filtro, campanha, geração de firmware — em dado sintético, sem placa,
 sem rede e sem nuvem. Se fechar verde, o resto é hardware.
 
@@ -71,6 +71,7 @@ verifica o que ele afirma**.
 | 07 | [invariantes](docs/matematica/07-invariantes.md) | sete testes; cinco não ajustam nada |
 | 08 | [sombreamento](docs/matematica/08-sombreamento.md) | corpo sem rádio; e movimento ≠ presença |
 | 09 | [geometria 3D](docs/matematica/09-geometria-3d.md) | nuvem de pontos → sítio, com orçamento de erro |
+| 10 | [temporal](docs/matematica/10-temporal.md) | o relógio como coordenada; o cabo USB como restrição de posição |
 
 ---
 
@@ -81,12 +82,13 @@ sitios/exemplo.json      O SÍTIO É DADO. Geometria, âncoras, rádio — tudo 
 rtls/                    Host: ingestão, modelo, ajuste, filtro, saída
   sitio.py               ... carrega o sítio; é o único que lê o JSON
   receptor.py            ... UDP das âncoras -> JSONL append-only
-  modelo/                ... propagação, censura, estimação, invariantes
+  oportunidade.py        ... alvo no cabo USB = posição conhecida, de graça
+  modelo/                ... propagação, censura, estimação, invariantes, tempo
   tracker.py  vivo.py    ... filtro de partículas; posterior por cômodo
 ferramentas/             Campanha, painel, simulador, geradores, checadores
 firmware/ancora-c3/      C (ESP-IDF): as N âncoras, MESMO binário nas N
 firmware/alvo-cyd/       C++ (PlatformIO): sniffer, painel, campanha
-testes/roda_tudo.py      Enfileira os 23 auto-testes. Sem framework.
+testes/roda_tudo.py      Enfileira os 26 auto-testes. Sem framework.
 docs/  hardware/         Ver a tabela acima
 ```
 
@@ -112,6 +114,7 @@ provaria que o código roda; dois provam que ele não decorou o primeiro.
 | Todas as N placas rodam o **mesmo binário** | A identidade é o MAC; o mapa MAC→número mora no host. Gravar N firmwares diferentes é N vezes a chance de errar |
 | Nada é promovido por caber melhor no ajuste | LOPO por ponto contra o modelo **em produção**; entra só se `média(ganho) − EP > 0,5 dB`. Quatro blocos foram reprovados assim — e continuam desligados no código |
 | Ganho direcional e mapa de material: **desligados** | A matemática está certa; o instrumento não tem resolução para ela. O gancho fica, documentado, sem rodar |
+| O alvo no cabo USB vira **âncora de oportunidade** | Horas de posição conhecida, de graça. Não serve como ponto de campanha (um ponto só dá desenho de posto 1); serve como **relógio**: com a posição travada, o resíduo só pode ser tempo |
 | Sem nuvem, sem conta, sem serviço externo | O dado é do dono do imóvel. Ver [PRIVACIDADE](docs/PRIVACIDADE.md) |
 
 > **A regra que atravessa o projeto inteiro:**

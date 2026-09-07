@@ -89,7 +89,8 @@ class Tracker:
     def __init__(self, anchors, floorplan, A=-45.0, n_exp=2.8, sigma=3.4,
                  n_particles=600, q=0.6, v_max=2.5, ttl=120.0, ll_floor=-8.0, seed=0,
                  b_alfa=0.0, z_alvo=1.1, W=0.0, piso=None, alpha=1.0, nu=None,
-                 t_parado=60.0, t_andando=20.0, jitter_parado=0.03, ganho=None):
+                 t_parado=60.0, t_andando=20.0, jitter_parado=0.03, ganho=None,
+                 temporal=None):
         """sigma 3,4 dB e MEDIDO (CYD; V1 remede na C3 a 2 s). O 6,0 anterior era
         chute — a bancada simulada gera com 6,0 e por isso passa 6,0 explicito.
 
@@ -136,6 +137,19 @@ class Tracker:
         # so entra se a transferencia leave-one-point-out aprovar (hoje NAO aprova,
         # ver modelo/padrao.json). Aqui e so o gancho — a decisao mora la.
         self.ganho = ganho
+        # temporal: modelo diurno de modelo/temporal.py, ou None (estado NORMAL).
+        # Entrega DUAS coisas por hora: mu(t), um deslocamento comum a todas as
+        # ancoras, e escala(t), um multiplicador de sigma. So o segundo e sempre
+        # seguro — alargar sigma numa hora barulhenta so faz o filtro confiar
+        # menos, nunca o move para lugar nenhum.
+        #
+        # ARMADILHA: mu(t) entra na MESMA fenda que tr.b. Com b_alfa>0 os dois
+        # estimariam o mesmo deslocamento e brigariam — e b_alfa e exatamente o
+        # reajuste cego que 06-transferencia reprovou. Por isso b_alfa nasce 0.
+        # Se voce ligar os dois, o vies vira soma de duas estimativas do mesmo
+        # numero. Fora das horas com dado de treino, temporal devolve 0 e 1: o
+        # rastreador roda como hoje, sem extrapolar Fourier as cegas.
+        self.temporal = temporal
         # alpha<1 (tempering): o residuo estrutural desta casa e CONSTANTE no tempo
         # (+8,7 dB no enlace 5<->3, +16 dB do CYD para a 5, estavel a 1 dB em 90 min).
         # Multiplica-lo 120x/min como se fossem evidencias novas e independentes deixa
@@ -170,7 +184,7 @@ class Tracker:
                       self.rng.normal(0, 0.5, (self.n, 2)), t)
 
     # ---- modelo de medida (trocavel) ----
-    def loglik(self, P, ai, rssi, b=0.0):
+    def loglik(self, P, ai, rssi, b=0.0, esc=1.0):
         """Path loss log-distancia. Subclasse troca isto por um mapa de radio
         sem tocar em movimento, planta, reamostragem ou ciclo de vida (fingerprint.py)."""
         d = self._dist(np.linalg.norm(P[:, None, :] - self.P[None, ai, :], axis=2), ai)
@@ -179,14 +193,15 @@ class Tracker:
             mu = mu - self.W*np.column_stack([self.fp.cruza(P, self.P[k]) for k in ai])
         if self.ganho is not None:
             mu = mu + self.ganho(P, ai, self.z_alvo)
-        z = ((rssi - b) - mu)/self.sigma
+        sig = self.sigma*esc          # esc vem do modelo diurno; 1.0 = como hoje
+        z = ((rssi - b) - mu)/sig
         ll = (-0.5*(self.nu + 1.0)*np.log1p(z*z/self.nu) if self.nu else -0.5*z*z)
         if self.piso is not None:
             # censurado nao e "sem informacao": ainda diz "nao estou perto desta
             # ancora". Penaliza so quando o modelo previa que ela OUVIRIA alto —
             # dobradica de um lado so, que e a verossimilhanca da cauda sem scipy.
             cens = (rssi - b) <= self.piso
-            ll = np.where(cens, -0.5*(np.maximum(mu - self.piso, 0)/self.sigma)**2, ll)
+            ll = np.where(cens, -0.5*(np.maximum(mu - self.piso, 0)/sig)**2, ll)
         return ll if self.nu else np.maximum(ll, self.ll_floor)
 
     def _dist(self, dxy, ai):
@@ -239,7 +254,11 @@ class Tracker:
         # passo (pairs sai de obs). Ancora ausente e termo ausente — nunca um RSSI
         # de piso, que empurraria a nuvem para longe dela como se tivesse ouvido.
         if len(ai):
-            lw = np.log(tr.w + 1e-300) + self.alpha*self.loglik(tr.p, ai, rssi, tr.b).sum(1)
+            b, esc = tr.b, 1.0
+            if self.temporal is not None:
+                b = b + float(self.temporal.mu(t)[0])
+                esc = float(self.temporal.escala(t)[0])
+            lw = np.log(tr.w + 1e-300) + self.alpha*self.loglik(tr.p, ai, rssi, b, esc).sum(1)
             lw -= lw.max()
             w = np.exp(lw); s = w.sum()
             tr.w = np.full(self.n, 1.0/self.n) if not np.isfinite(s) or s <= 0 else w/s
@@ -414,6 +433,21 @@ def demo():
     assert abs(ll_com - t2.loglik(P1, np.array([0]), r - 2.0)[0, 0]) < 1e-9, (ll_com, ll_sem)
     assert t2.loglik(P1, np.array([0]), np.array([-60.0]))[0, 0] != \
            t3.loglik(P1, np.array([0]), np.array([-60.0]))[0, 0]
+    # gancho temporal: desligado tem de ser IDENTICO ao de hoje; ligado, sigma
+    # escala exatamente por escala(t) e mu desloca exatamente por mu(t).
+    from rtls.modelo.temporal import Temporal, VIES_LOG
+    ll0 = t2.loglik(P1, np.array([0]), r)[0, 0]
+    assert t2.loglik(P1, np.array([0]), r, 0.0, 1.0)[0, 0] == ll0
+    # K=0 e o modelo nulo: sigma constante, logo escala == 1 em qualquer hora —
+    # ligar o gancho com ele nao pode mudar nada.
+    tp = Temporal(0, np.zeros(0), np.array([2*np.log(2*SIGMA) + VIES_LOG]), ref=2*SIGMA)
+    assert abs(tp.sigma(np.array([0.0]))[0] - 2*SIGMA) < 1e-9, tp.sigma(np.array([0.0]))
+    assert abs(tp.escala(np.array([0.0]))[0] - 1.0) < 1e-12
+    lls = t2.loglik(P1, np.array([0]), r, 0.0, 2.0)[0, 0]
+    t4 = Tracker(a2d, fp, sigma=2*SIGMA)
+    assert abs(lls - t4.loglik(P1, np.array([0]), r)[0, 0]) < 1e-9, (lls,)
+    print(f"temporal: esc=2 identico a sigma dobrado ({lls:.4f}); esc=1 identico a hoje")
+
     print(f"z: ancora no rodape a 3,00 m no plano -> {d3:.2f} m reais "
           f"({10*2.8*np.log10(d3/d2):+.2f} dB de vies se ignorado)")
 

@@ -322,5 +322,32 @@
   "piso_radio_dBm": -101,
   "nota_piso": "piso_radio e o ruido do CI; piso e o piso PRATICO de captura de advertising (o pacote precisa de SNR, nao so de estar acima do ruido). A ~6 dB do piso do radio so os desvanecimentos favoraveis passam: e ai que a censura comeca. Meca o seu com uma varredura de ptx — ver docs/matematica/02-censura.md."
  },
- "ancoras_nota": "mac = o MAC de fabrica do STA da placa (esptool read_mac). E ele, e nao um numero gravado no firmware, que identifica a ancora: as N placas rodam o MESMO binario. Os daqui sao de exemplo (02:.. = localmente administrado, nao existe em hardware) — troque pelos seus antes de gerar o firmware do alvo."
+ "ancoras_nota": "mac = o MAC de fabrica do STA da placa (esptool read_mac). E ele, e nao um numero gravado no firmware, que identifica a ancora: as N placas rodam o MESMO binario. Os daqui sao de exemplo (02:.. = localmente administrado, nao existe em hardware) — troque pelos seus antes de gerar o firmware do alvo.",
+ "postos": {
+  "_nota": "posto de trabalho: onde o alvo FICA quando esta no cabo USB. Nao e ancora nem ponto de campanha — e uma posicao conhecida de OPORTUNIDADE, valida so enquanto o host correspondente enxerga o dispositivo. raio = alcance do cabo + folga da bancada; e a incerteza da posicao, nao um enfeite. Ver docs/matematica/10-temporal.md e rtls/oportunidade.py.",
+  "mesa_quarto": {
+   "pos": [
+    1.6,
+    4.8,
+    0.75
+   ],
+   "raio": 0.8,
+   "hosts": [
+    "linux"
+   ],
+   "nota": "escrivaninha do quarto1; servidor fixo, cabo curto"
+  },
+  "mesa_sala": {
+   "pos": [
+    3.6,
+    1.2,
+    0.75
+   ],
+   "raio": 0.8,
+   "hosts": [
+    "mac"
+   ],
+   "nota": "mesa da sala; notebook, so quando esta na base"
+  }
+ }
 }

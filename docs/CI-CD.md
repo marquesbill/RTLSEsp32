@@ -138,9 +138,9 @@ firmware/ancora-c3/build.sh build
 pio run -d firmware/alvo-cyd -e cyd -e painel -e campanha
 ```
 
-Esperado no passo 1, nos **dois** sítios: `23 ok, 0 falha(s)`. A CI instala
-`numpy scipy` de propósito — com o `scipy` presente nada é pulado e os 23 alvos
-rodam de verdade. Na sua máquina, sem `scipy`, o certo é `21 ok, 0 falha(s),
+Esperado no passo 1, nos **dois** sítios: `26 ok, 0 falha(s)`. A CI instala
+`numpy scipy` de propósito — com o `scipy` presente nada é pulado e os 26 alvos
+rodam de verdade. Na sua máquina, sem `scipy`, o certo é `24 ok, 0 falha(s),
 2 pulado(s)`; as duas saídas são verdes.
 
 Se o passo 1 passa e a CI reprova, a diferença está no ambiente — quase sempre
@@ -196,6 +196,9 @@ folga). Se um dia essa linha cair, o desenho ficou mal condicionado — o conser
 | `confere_citacoes` → `ORFA` | Referência no `.bib` que nenhum `.md` cita | Cite ou remova |
 | `recuperacao` → `|z|` na casa de 1e12, e só num sítio/versão | Duas tolerâncias respondendo "esta direção é observável?": a variância foi zerada por uma e o erro cobrado pela outra | Uma decomposição, um corte, e dele saem `theta`, `cov` **e** a base do nulo — `rtls/modelo/nucleo.py:gls` |
 | `recuperacao` → `assert acima > 1e3 and abaixo > 1e3` | O corte de posto caiu no meio de um contínuo de σ; o `\|z\|` virou moeda de LAPACK | Conserte o **desenho** (mais âncoras, mais pontos de campanha). Afrouxar o `4.0` esconde o defeito |
+| `oportunidade.demo` → `assert movt <= rej` | A checagem de assinatura parou de pegar bloco de outro lugar — em geral porque alguém passou a comparar blocos com **conjuntos de âncoras diferentes** | A média da assinatura é sobre as âncoras presentes; âncora muda muda a média. Compare só blocos com a mesma chave `tuple(b["rx"])` |
+| `oportunidade.demo` → `assert r3 == r0` | A rejeição virou sensível à deriva temporal, ou seja o critério deixou de morar no espaço ortogonal a `1` | Não misture `nivel` na decisão. Se precisar, veja [10 §10.3](matematica/10-temporal.md) |
+| `temporal.demo` → `assert reprovas == 6` | O portão de promoção afrouxou e passou a achar ciclo em ruído branco | Não baixe a `MARGEM` nem tire o `min_d Δ_d > 0`. Se o problema é falta de dado, o conserto é mais dias, não margem menor |
 | `ancora` falhou em `malha.c` com `ble_gap_ext_adv_*` implícita | `sdkconfig` velho, configurado para outro alvo | `rm -rf firmware/ancora-c3/{sdkconfig,build}` — o `CONFIG_IDF_TARGET` do `sdkconfig.defaults` só entra quando o `sdkconfig` **não existe** |
 | `ancora` falhou e `alvo` passou | Só o C3 | Reproduza com `build.sh build` |
 | Os dois firmwares falharam | Quase sempre `credenciais.h` | Confira o passo `cp` |
@@ -251,6 +254,7 @@ hora. A janela de incompatibilidade fica do lado que você controla.
 | Rádio (potência, canal) | não | não | **sim** | **não** — releia a §5.1 |
 | Código do host | não | não | não | sim |
 | Classes de parede (`W_dB`) | não | não | não | sim (é parâmetro do modelo) |
+| `postos` (mesa do cabo USB) | não | não | não | sim — não entra no `.h` nem no rádio |
 
 ¹ A âncora não sabe onde está. Todas as N placas rodam o **mesmo binário**; quem
 dá identidade é o MAC, e o mapa MAC→número mora no host (`ancoras.txt`). Mover
@@ -355,6 +359,8 @@ campanha ([INSTALL §8](INSTALL.md)).
 | Precisão do posicionamento | Depende do sítio e da campanha | LOPO por ponto: promove só se `média(ganho) − EP > 0,5 dB` |
 | Gravação de placa | Destrutivo e específico da máquina | `flash_ancoras.sh` exige 3/3 hashes verificados e >20 pacotes antes de registrar |
 | Desempenho | Nada aqui é sensível a latência | — |
+| Se o seu cabo USB realmente chega só à mesa | É um fato do seu apartamento, não do código | A checagem de assinatura, que rejeita o bloco cuja forma não bate com as outras do mesmo posto ([10 §10.4](matematica/10-temporal.md)) |
+| Se existe ciclo diário no **seu** ambiente | Depende do prédio, dos vizinhos e da hora em que você usa o cabo | O portão de dia-inteiro-fora: se não existe, `ajusta()` devolve `None`, e isso é o resultado certo |
 
 O ponto do último item vale para o segundo: **uma métrica não valida o próprio
 ajuste**. Uma CI que aprovasse o modelo pelo erro no conjunto em que ele foi

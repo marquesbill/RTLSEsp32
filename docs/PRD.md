@@ -120,7 +120,9 @@ Estes cinco não são estilo; cada um saiu de um erro que custou dias.
 - Host Python — recepção, ajuste A/n/W, filtro de partículas, campanha D-ótima,
   LOO, painel SVG, simulador completo (o sistema roda sem uma placa sequer).
 - Sítio como JSON + validador + gerador do `.h` do firmware do alvo.
-- 10 documentos de matemática com 39 referências conferidas em CI.
+- 11 documentos de matemática com 45 referências conferidas em CI.
+- Âncora de oportunidade (alvo no cabo USB = posição conhecida) e modelo
+  temporal diurno de `μ` e `σ`, ambos com portão de transferência próprio.
 - Reconstrução 3D → sítio (opcional; a trena continua valendo).
 
 ### 6.2 Fora da versão 1.0

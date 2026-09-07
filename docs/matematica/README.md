@@ -17,7 +17,8 @@ demonstrada, ou é uma medida com o procedimento junto.
 | 07 | [invariantes](07-invariantes.md) | sete testes em ordem de força; cinco não ajustam nada |
 | 08 | [sombreamento](08-sombreamento.md) | corpo sem rádio: tomografia, e movimento ≠ presença |
 | 09 | [geometria 3D](09-geometria-3d.md) | nuvem de pontos → sítio, com orçamento de erro |
-|  — | [referências](referencias.bib) | 39 entradas, todas citadas |
+| 10 | [temporal](10-temporal.md) | o relógio como coordenada; o cabo USB como restrição de posição |
+|  — | [referências](referencias.bib) | 45 entradas, todas citadas |
 
 ## A regra que organiza tudo
 

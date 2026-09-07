@@ -152,6 +152,42 @@ número absoluto que só vale na sua casa.
       altura) continuam no código, desligados, com o número que os reprovou ao
       lado.
 
+### US-17 (P, P1) — Rótulo que aparece sozinho
+
+> Como pesquisador, quero que as horas em que o alvo fica no cabo USB virem dado
+> rotulado, sem que ninguém precise andar pela casa nem digitar nada.
+
+**Critérios de aceite**
+- [ ] O sítio descreve `postos` — posição, raio (= incerteza) e quais hosts.
+- [ ] Um host só pode pertencer a um posto; `valida()` reprova o contrário.
+- [ ] O vigia detecta o cabo **sem abrir a porta serial** (abrir reseta o ESP32)
+      e sem casar `/dev/ttyACM*` (é o T-Embed de outro projeto).
+- [ ] Grava só a **transição**, e fecha a sessão aberta ao sair.
+- [ ] Todo bloco colhido é conferido antes de ser usado, e a conferência é
+      **livre de modelo** — nunca contra o `A/n/W` que ele vai ajudar a estimar.
+- [ ] A conferência é cega à variação temporal: mesmo conjunto de rejeitados com
+      e sem 8 dB de deriva comum.
+- [ ] Sítio sem `postos` continua funcionando — o caminho inteiro fica inerte.
+
+---
+
+### US-18 (P, P1) — Medida mais precisa dada a hora
+
+> Como pesquisador, quero que o sistema saiba que às 20h o canal é pior que às
+> 4h, e que ele desconfie mais do RSSI na hora ruim.
+
+**Critérios de aceite**
+- [ ] Modela `μ(t)` **e** `σ(t)`; um modelo que só corrige a média não serve.
+- [ ] `μ` não tem termo constante — não pode competir com o `A` da propagação.
+- [ ] A correção de viés de `log ε²` (−1,2704) está aplicada e testada.
+- [ ] `K` é escolhido com **dia inteiro fora**, e a régua é NLL, não RMSE.
+- [ ] Promove pela regra da US-09 traduzida: `média(Δ) − EP > 0,16 nats` e
+      **nenhum dia pode piorar**.
+- [ ] Em ruído branco puro, **não promove nada** — verificado em 6/6 sementes.
+- [ ] Fora das horas com dado de treino, devolve `μ=0` e escala `1`: nunca
+      extrapola Fourier para dentro de um buraco de 16 h.
+- [ ] Com `temporal=None` o rastreador é idêntico ao de hoje.
+
 ---
 
 ## Épico 4 — Usar
@@ -254,3 +290,5 @@ número absoluto que só vale na sua casa.
 | US-14 | O3 | `rtls/revisao.py` |
 | US-15 | — | varredura da CI |
 | US-16 | O4 | `bash -n` + execução com placas |
+| US-17 | O2 | `rtls.oportunidade.demo()`, `ferramentas.vigia_usb.demo()` |
+| US-18 | O2 | `rtls.modelo.temporal.demo()` |

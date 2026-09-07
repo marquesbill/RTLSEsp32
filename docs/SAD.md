@@ -122,12 +122,19 @@ ver [01 §1.5](matematica/01-propagacao.md).
 | `classes_parede`, `classe_padrao` | dict / string | não | `k_c` por material |
 | `ancoras` | `{tag: {...}}` | sim | ver abaixo |
 | `emissores_fixos` | `{nome: {pos, tipo, tipo_rf}}` | não | AP, TV, balança: não são âncoras, mas ocupam espaço e emitem |
+| `postos` | `{nome: {pos, raio, hosts}}` | não | onde o alvo **fica** quando está no cabo USB; posição conhecida por oportunidade |
 | `radio` | dict | sim | `f_Hz`, `ptx_niveis_dBm`, `piso_dBm`, `limiar_deteccao_dBm`, `sigma_deteccao_dB`, `piso_radio_dBm` |
 
 Dentro de `ancoras[tag]`: `pos: [x,y,z]` e `mac` são obrigatórios; `radio: <n>`
 (o número instalado) é o que separa âncora **candidata** de âncora **instalada**
 — sem ele a posição fica no JSON como plano de expansão e não entra em conta
 nenhuma. Opcionais: `comodo`, `nota`, `tipo`, `yaw`, `p_tx_dBm`.
+
+`postos` é a única seção cuja validade é **temporária**: vale só enquanto o host
+correspondente enxerga o dispositivo. `raio` é o alcance do cabo mais a folga da
+bancada — **é a incerteza da posição**, e um cabo de 2 m vale muito menos que um
+de 60 cm. Um `host` só pode aparecer em um posto, senão "plugado" deixa de
+determinar lugar; `rtls/oportunidade.py:valida()` cobra isso.
 
 ### 3.4 O que `valida()` pega
 
@@ -310,6 +317,28 @@ de Manhattan + ICP restrito). A trena continua valendo; o ganho é o orçamento 
 erro medido, não a conveniência. Sítio simétrico empata em 180° — o desempate é
 por cor ou pela trajetória da câmera. [09](matematica/09-geometria-3d.md)
 
+### 5.7 Tempo — `oportunidade.py`, `modelo/temporal.py`
+
+O par que acrescenta o relógio ao modelo. `oportunidade.py` cruza os intervalos
+de `presenca.jsonl` (escritos por `ferramentas/vigia_usb.py` no host) com o
+`refcyd.jsonl` do receptor: enquanto o alvo está no cabo USB, ele está na mesa, a
+posição é conhecida e **o resíduo só pode ser tempo**. É a única configuração em
+que deriva temporal e deriva de posição não estão confundidas — e custa zero
+trabalho humano.
+
+O rótulo gratuito é conferido antes de ser usado, e a conferência é **livre de
+modelo**: `assinatura(y) = y − média(y)` separa o vetor de RSSI em modo comum
+(tempo, potência) e forma (geometria); um bloco é rejeitado se a forma dele se
+afastar da mediana das outras em mais de 3,5 MAD. Usar `A/n/W` aqui seria a
+métrica validando o próprio ajuste.
+
+`modelo/temporal.py` ajusta `μ(t)` e `log σ²(t)` numa base de Fourier diurna,
+escolhe `K` com **dia inteiro fora**, e promove pela regra de
+[06](matematica/06-transferencia.md) medida em NLL — não RMSE, porque o modelo
+muda `σ` e o RMSE é cego a isso. Ele devolve `None` quando não há ciclo, e fora
+das horas cobertas se cala. O rastreador consome como `temporal=`:
+`b ← b + μ(t)` e `σ ← σ·escala(t)`. [10](matematica/10-temporal.md)
+
 ## 6. Interfaces
 
 ### 6.1 Portas UDP e HTTP
@@ -332,6 +361,7 @@ Trocar de porta: as constantes moram no topo de `rtls/receptor.py`,
 |---|---|---|---|
 | `<n>.jsonl` | `receptor.py` | um avistamento por linha | append-only |
 | `refcyd.jsonl` | `receptor.py` | avistamentos do transmissor de referência | append-only |
+| `presenca.jsonl` | `vigia_usb.py` (no host) | `{host, ev: ini\|fim, t}` | append-only; só transições |
 | `rotulos.jsonl` | `rotulos.py` | um evento de rótulo por linha | **append-only, nunca editado** |
 | `correcoes.jsonl` | você, à mão | `{boot, seq, ...}` | corrige sem apagar |
 | `modelo.json` | `revisao.py` | `A`, `n`, `W`, offsets | promovido só via LOPO |
@@ -370,7 +400,7 @@ teste tem de morar ao lado da lógica que ele protege. `testes/roda_tudo.py` só
 enfileira, e o contrato é minúsculo: **levantar é a única forma de falhar**.
 
 ```bash
-PYTHONPATH=. python3 -m testes.roda_tudo             # 23 alvos (21 sem scipy), ~50 s, sem hardware
+PYTHONPATH=. python3 -m testes.roda_tudo             # 26 alvos (24 sem scipy), ~50 s, sem hardware
 PYTHONPATH=. python3 -m testes.roda_tudo sitio       # só os que casam com 'sitio'
 RTLS_SITIO=testes/sitio_outro.json PYTHONPATH=. python3 -m testes.roda_tudo  # o que importa
 ```

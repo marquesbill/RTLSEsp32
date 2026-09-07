@@ -22,8 +22,9 @@ nenhuma placa, e prova que o sistema inteiro funciona na sua máquina.
 6. [Subir o host](#6-subir-o-host)
 7. [O alvo/campanha na CYD (opcional)](#7-o-alvocampanha-na-cyd-opcional)
 8. [Primeira campanha de rótulos](#8-primeira-campanha-de-rótulos)
-9. [Personalizar](#9-personalizar)
-10. [Quando der errado](#10-quando-der-errado)
+9. [Rótulo de graça: o cabo USB](#9-rótulo-de-graça-o-cabo-usb-opcional)
+10. [Personalizar](#10-personalizar)
+11. [Quando der errado](#11-quando-der-errado)
 
 ---
 
@@ -39,10 +40,10 @@ PYTHONPATH=. python3 -m testes.roda_tudo
 Esperado: **0 falha(s)**, em torno de 50 s. Python 3.10 ou mais novo; `numpy` é a
 única dependência **obrigatória**, e é uma promessa que a CI cobra.
 
-Com só o `numpy` a saída é `21 ok, 0 falha(s), 2 pulado(s)`: `rtls.modelo.nuvem` e
+Com só o `numpy` a saída é `24 ok, 0 falha(s), 2 pulado(s)`: `rtls.modelo.nuvem` e
 `rtls.modelo.material` pedem `scipy` e são o caminho da nuvem de pontos, que é
 opcional por decisão (foi reprovado na transferência — [06-transferencia](matematica/06-transferencia.md)).
-`pip install scipy` os traz de volta e a saída vira `23 ok`. Pulo não é falha: o
+`pip install scipy` os traz de volta e a saída vira `26 ok`. Pulo não é falha: o
 código de saída continua 0. E o pulo é **nominal** — só vale para `scipy`; qualquer
 outro import quebrado continua reprovando, senão um `import numpi` errado passaria
 como "pulado".
@@ -143,7 +144,7 @@ CI de quem usa. Depois rode a suíte inteira no seu sítio:
 RTLS_SITIO=$PWD/sitios/meu.json PYTHONPATH=. python3 -m testes.roda_tudo
 ```
 
-Tem de dar **23 ok** também aqui. Se algum alvo falhar no seu sítio e passar no
+Tem de dar **26 ok** também aqui. Se algum alvo falhar no seu sítio e passar no
 exemplo, é bug do repositório — abra uma issue com o `resumo()` do seu sítio.
 
 ## 3. Onde pôr as âncoras
@@ -352,11 +353,61 @@ PYTHONPATH=. python3 -m rtls.modelo.invariantes       # os sete invariantes
 modelo em produção como controle: `média(ganho por ponto) − EP > 0,5 dB`, unidade
 = ponto. Quatro blocos já reprovaram aí ([06](matematica/06-transferencia.md)).
 
-## 9. Personalizar
+## 9. Rótulo de graça: o cabo USB (opcional)
+
+Enquanto o alvo está plugado no seu computador, ele está na sua mesa. É uma
+posição conhecida, dura horas, e não custa trabalho nenhum. Isso vale como
+**relógio**: com a posição travada, tudo que sobra no resíduo é tempo — e é o
+único jeito de medir a variação horária do canal sem confundi-la com movimento
+([10](matematica/10-temporal.md)).
+
+**1. Descreva o posto no seu sítio.** Só a posição da mesa e o alcance do cabo:
+
+```json
+"postos": {
+  "mesa_quarto": {"pos": [1.60, 4.80, 0.75], "raio": 0.80, "hosts": ["linux"]}
+}
+```
+
+`raio` **é a incerteza da posição**: alcance do cabo mais a folga da bancada. Um
+cabo de 2 m vale muito menos que um de 60 cm — meça o seu. `hosts` são nomes
+livres, e um host só pode aparecer em **um** posto.
+
+**2. Rode o vigia em cada host**, junto com o resto:
+
+```bash
+python3 ferramentas/vigia_usb.py --host linux --dir "$RTLS_DADOS"
+# macOS:  --host mac --porta '/dev/cu.usbserial-*'
+```
+
+Ele só testa se o arquivo de dispositivo existe — **não abre a porta serial**,
+porque abrir reseta o ESP32 pelo DTR/RTS. Escreve `presenca.jsonl` com um par
+`ini`/`fim` por sessão.
+
+> **Se o seu alvo aparece como `/dev/ttyACM*`**, não use o padrão: aponte
+> `--porta` para um link do udev pelo serial do chip. Casar `ttyACM*` cru
+> registraria "o alvo está na mesa" toda vez que **qualquer** placa CDC estivesse
+> ligada, e cada bloco colhido nesses períodos seria um rótulo falso com peso de
+> verdade no ajuste.
+
+**3. Depois de alguns dias**, colha e ajuste:
+
+```bash
+PYTHONPATH=. python3 -m rtls.oportunidade      # quantos blocos, quantos rejeitados
+PYTHONPATH=. python3 -m rtls.modelo.temporal   # ha ciclo diario? promove?
+```
+
+O modelo temporal **pode dizer que não** — e dizer não é o resultado certo
+quando não há ciclo. Ele só entra se sobreviver ao dia-inteiro-fora com ganho
+maior que 0,16 nats por ponto e nenhum dia piorando. Enquanto não passar, o
+rastreador roda exatamente como hoje.
+
+## 10. Personalizar
 
 | quero | onde | cuidado |
 |---|---|---|
 | mais âncoras | `ancoras` no JSON + `flash_ancoras.sh` | o firmware é o mesmo binário; só o JSON muda |
+| corrigir por horário | `Tracker(..., temporal=m)` com o `m` de `modelo/temporal.py` | só depois que ele passar no dia-fora; e **não** ligue junto com `b_alfa` |
 | outra altura de âncora | `pos[2]` no JSON | **use a mesma para todas** (§3, regra 2) |
 | parede de material diferente | `classes_parede` + `classe_padrao` | [01 §1.5](matematica/01-propagacao.md) |
 | outra placa de tela | `build_flags` do `platformio.ini` | só esse bloco |
@@ -374,7 +425,7 @@ de acoplamento em [CI-CD §5.3](CI-CD.md). A fixação física e as regras que o
 modelo enxerga (altura única, orientação, 30 cm de metal) estão em
 [hardware/montagem.md](../hardware/montagem.md).
 
-## 10. Quando der errado
+## 11. Quando der errado
 
 | sintoma | causa provável | o que fazer |
 |---|---|---|

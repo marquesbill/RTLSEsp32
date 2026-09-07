@@ -36,7 +36,7 @@ PADRAO = os.path.join(AQUI, "sitios", "exemplo.json")
 def carrega(caminho=None):
     """Le o JSON e publica os nomes de modulo. Chamado no import; chame de novo
     para trocar de sitio dentro do mesmo processo (os testes fazem isso)."""
-    global D, NOME, COMODOS, PORTAS, JANELAS, ANCORAS, ESCOLHIDAS, INSTALADO, TOMADA
+    global D, NOME, COMODOS, PORTAS, JANELAS, ANCORAS, ESCOLHIDAS, INSTALADO, TOMADA, POSTOS
     global X_MIN, X_MAX, Y_MIN, Y_MAX, Z_MAX, RECUO, EMISSORES, RADIO, CLASSES, CLASSE_PADRAO
     global CAMINHO
     caminho = caminho or os.environ.get("RTLS_SITIO") or PADRAO
@@ -58,6 +58,12 @@ def carrega(caminho=None):
     Z_MAX = D["limites"].get("z", [0, 2.6])[1]
     RECUO = D.get("recuo", 0.05)
     EMISSORES = {k: tuple(v["pos"]) for k, v in D.get("emissores_fixos", {}).items()}
+    # POSTOS: posicao conhecida por OPORTUNIDADE (alvo no cabo USB). Chaves com
+    # "_" sao nota do JSON, nao posto. Sitio sem a secao devolve {} e todo o
+    # caminho de oportunidade fica inerte — nao e obrigatorio para nada.
+    POSTOS = {k: {"pos": tuple(v["pos"]), "raio": float(v.get("raio", 0.8)),
+                  "hosts": tuple(v.get("hosts", ()))}
+              for k, v in D.get("postos", {}).items() if not k.startswith("_")}
     RADIO = D.get("radio", {})
     CLASSES = D.get("classes_parede", {})
     CLASSE_PADRAO = D.get("classe_padrao", "alvenaria")
