@@ -136,26 +136,42 @@ def recuperacao(grau=1, ruido=1.0, semente=0):
                             chi=chis(ents, obs, pos.get(i, ents[i].xyz), pos.get(j, ents[j].xyz)))
                   for (i, j), pos in zip(enl, pos_l)])
     y = X @ th + rng.normal(0, ruido, len(X))
-    est, cov, posto, dnula, _ = gls(X, y, Rg=Rg)
+    est, cov, posto, dnula, nulo = gls(X, y, Rg=Rg)
 
     # A gauge fixa t e r com media zero; a verdade ja foi gerada assim. O erro so
     # pode ser cobrado NO SUBESPACO QUE O DADO VE: colunas de leverage nula (um
     # corpo que nao tapa enlace nenhum) nao sao erro do estimador, sao cegueira do
     # experimento — e e isso que o diagnostico separa.
     err = est - th
-    return des, th, est, posto, dnula, err, diagnostico(X, Rg, err, des.cols, cov, ruido)
+    # Folga do corte de posto: a razao entre o menor sigma MANTIDO e a tolerancia,
+    # e entre a tolerancia e o maior sigma DESCARTADO. E o invariante de verdade
+    # deste teste. O `|z| < 4` la embaixo so e reprodutivel entre versoes de
+    # numpy/LAPACK porque o corte cai num vao de nove ordens de grandeza; foi
+    # justamente um corte DENTRO do continuo que fez a CI ver z = 2e12 onde aqui
+    # dava 1.99. Cobro a folga, e nao o resultado que ela sustenta.
+    A = np.vstack([X, 1e3 * Rg])
+    sa = np.linalg.svd(A, compute_uv=False); sa = sa / sa[0]
+    tol = max(A.shape) * np.finfo(float).eps
+    ka = int((sa > tol).sum())
+    folga = (sa[ka - 1] / tol, tol / max(sa[ka], 1e-300) if ka < len(sa) else np.inf)
+    return des, th, est, posto, dnula, err, diagnostico(err, des.cols, cov, ruido, nulo), folga
 
 
-def diagnostico(X, Rg, err, cols, cov, ruido, tol=1e-7):
+def diagnostico(err, cols, cov, ruido, nulo):
     """Cobra o erro de cada parametro CONTRA O PROPRIO DESVIO PADRAO (CRLB).
 
     Cobrar em dB puro seria injusto e escondido: uma coluna quase sem leverage
     (um corpo que nao tapa enlace nenhum) tem sigma enorme, e um erro de 9 dB
     nela e ruido esperado, nao bug. O z-score poe todo mundo na mesma regua.
 
+    `nulo` vem do `gls` de proposito, e nao de um `espaco_nulo()` chamado aqui:
+    a direcao cuja variancia a cov zerou tem de ser exatamente a direcao cujo
+    erro eu perdoo. Recalcular com tolerancia propria e o bug que a CI pegou —
+    ver o comentario da decisao de posto em `rtls/modelo/nucleo.py:gls`.
+
     -> (|z| maximo, coluna do pior, [(coluna, sigma) das mal determinadas])
     """
-    N = espaco_nulo(np.vstack([X, 1e3 * Rg]), tol)
+    N = nulo
     e = err - N.T @ (N @ err) if len(N) else err
     sd = ruido * np.sqrt(np.maximum(np.diag(cov), 1e-18))
     z = np.abs(e) / np.maximum(sd, 1e-9)
@@ -333,14 +349,22 @@ def demo():
     print("=" * 78)
     print("1. RECUPERACAO SINTETICA — o estimador esta certo?")
     for grau in (1, 2):
-        des, th, est, posto, dnula, err, (zmax, pior, fracas, emax) = recuperacao(grau=grau)
+        (des, th, est, posto, dnula, err,
+         (zmax, pior, fracas, emax), (acima, abaixo)) = recuperacao(grau=grau)
         print(f"   grau {grau}: {len(des.cols):3d} parametros, posto {posto}, nulo {dnula}"
-              f" | |z| max {zmax:.2f} ({pior}), erro max {emax:.2f} dB")
+              f" | |z| max {zmax:.2f} ({pior}), erro max {emax:.2f} dB"
+              f" | folga do corte {acima:.0e}x / {abaixo:.0e}x")
         if fracas:
             print("            mal determinados (sigma > 3 dB): "
                   + ", ".join(f"{c} {v:.1f}" for c, v in fracas[:4]))
+        # 1e3 dos dois lados. MEDIDO: o pior caso nos dois sitios versionados e
+        # 1.5e6x acima e 1.9e3x abaixo, entao o teto tem tres ordens de sobra.
+        # Se esta linha cair, NAO afrouxe o 4.0 abaixo: o desenho ficou mal
+        # condicionado e o z virou moeda de versao de LAPACK.
+        assert acima > 1e3 and abaixo > 1e3, (grau, acima, abaixo)
         assert zmax < 4.0, (grau, zmax, pior)
-    print("   -> todo parametro volta dentro de 4 sigma da propria CRLB.")
+    print("   -> todo parametro volta dentro de 4 sigma da propria CRLB,")
+    print("      e o corte de posto cai num vao — nao num continuo de sigmas.")
 
     print()
     print("=" * 78)

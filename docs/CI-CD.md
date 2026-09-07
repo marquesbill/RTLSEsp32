@@ -166,6 +166,20 @@ for f in $(git ls-files '*.py'); do python3.11 -m py_compile "$f" || echo "QUEBR
 Se não tiver, é para isso que a linha `python: ["3.10", "3.13"]` da matriz existe.
 Ela é a única testemunha, e já pegou dois arquivos.
 
+E há uma classe que nem uma matriz de versões pega: **o LAPACK por baixo do
+numpy**. O runner do GitHub é Linux/OpenBLAS; um Mac é Accelerate. Os dois
+calculam os mesmos valores singulares a menos de ~`eps·σ₀`, o que é irrelevante
+— exceto quando o código decide alguma coisa por um σ que está *exatamente* na
+tolerância. Aí a mesma linha de código classifica a direção de um jeito aqui e
+de outro lá. Foi assim que `rtls/modelo/testes.py` fechou verde nesta caixa até
+com o numpy 2.5.3 da CI e vermelho no runner, com `|z| = 2,1×10¹²`.
+
+A defesa não é fixar versão de numpy, é **não decidir dentro do contínuo**: o
+corte de posto tem de cair num vão do espectro, e o teste cobra o vão em vez de
+cobrar o resultado que ele sustenta (`rtls/modelo/testes.py:demo`, assert da
+folga). Se um dia essa linha cair, o desenho ficou mal condicionado — o conserto
+é o desenho, nunca afrouxar o limite de `|z|`.
+
 ## 4. Ler uma falha
 
 | Sintoma na CI | Causa quase certa | Conserto |
@@ -180,6 +194,8 @@ Ela é a única testemunha, e já pegou dois arquivos.
 | `suite` vermelha em `ModuleNotFoundError: scipy` | Alguém tornou o `scipy` obrigatório no núcleo | O núcleo roda com `numpy` e nada mais (US-01). Mova o import para o caminho da nuvem ou acrescente o módulo a `OPCIONAIS` em `testes/roda_tudo.py` |
 | `ancora` → `Failed to resolve component` | Nome de componente que só existe numa faixa de versões do IDF | Peça o guarda-chuva (`driver`), não o `esp_driver_*`; a v5.4 da sua máquina aceita os dois e esconde o defeito |
 | `confere_citacoes` → `ORFA` | Referência no `.bib` que nenhum `.md` cita | Cite ou remova |
+| `recuperacao` → `|z|` na casa de 1e12, e só num sítio/versão | Duas tolerâncias respondendo "esta direção é observável?": a variância foi zerada por uma e o erro cobrado pela outra | Uma decomposição, um corte, e dele saem `theta`, `cov` **e** a base do nulo — `rtls/modelo/nucleo.py:gls` |
+| `recuperacao` → `assert acima > 1e3 and abaixo > 1e3` | O corte de posto caiu no meio de um contínuo de σ; o `\|z\|` virou moeda de LAPACK | Conserte o **desenho** (mais âncoras, mais pontos de campanha). Afrouxar o `4.0` esconde o defeito |
 | `ancora` falhou em `malha.c` com `ble_gap_ext_adv_*` implícita | `sdkconfig` velho, configurado para outro alvo | `rm -rf firmware/ancora-c3/{sdkconfig,build}` — o `CONFIG_IDF_TARGET` do `sdkconfig.defaults` só entra quando o `sdkconfig` **não existe** |
 | `ancora` falhou e `alvo` passou | Só o C3 | Reproduza com `build.sh build` |
 | Os dois firmwares falharam | Quase sempre `credenciais.h` | Confira o passo `cp` |

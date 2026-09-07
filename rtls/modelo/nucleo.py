@@ -222,7 +222,13 @@ class Desenho:
 def gls(X, y, S=None, Rg=None, peso_gauge=1e3, ridge=0.0):
     """Minimos quadrados generalizados com restricoes de gauge.
 
-    -> (theta, cov, posto, dim_nula, nomes_nulos_idx)
+    -> (theta, cov, posto, dim_nula, nulo_A)
+
+    `nulo_A` e a base do espaco nulo do sistema COM gauge, cortada exatamente no
+    mesmo posto que gerou a `cov`. Devolver isso nao e conveniencia: quem for
+    julgar o erro tem de projeta-lo fora usando A MESMA decisao que zerou a
+    variancia, ou pergunta "esta direcao e observavel?" duas vezes e aceita duas
+    respostas. Ver o comentario da decisao de posto abaixo.
     """
     if S is None:
         Xw, yw = X, y
@@ -235,14 +241,33 @@ def gls(X, y, S=None, Rg=None, peso_gauge=1e3, ridge=0.0):
     if ridge:
         A = np.vstack([A, np.sqrt(ridge) * np.eye(X.shape[1])])
         b = np.append(b, np.zeros(X.shape[1]))
-    th, *_ = np.linalg.lstsq(A, b, rcond=None)
+    # UMA decomposicao de A, UM corte, e dele saem theta, cov e a base do nulo.
+    #
+    # Antes aqui havia tres decisoes independentes sobre a mesma pergunta ("esta
+    # direcao e observavel?"): o rcond=None do lstsq, o rcond default do
+    # pinv(A.T@A) e, no chamador, um espaco_nulo(A, tol=1e-7). Como pinv corta
+    # AUTOvalores de A.T@A, o corte dele em sigma de A e sqrt(54*eps) ~= 1.1e-7 —
+    # colado no 1e-7 do chamador. E o espectro de A neste problema NAO tem degrau
+    # ali: MEDIDO em testes/sitio_outro.json, grau 2, ha sigma/sigma0 em 4.4e-8,
+    # 1.1e-7, 1.8e-7, 5.7e-7... Um fio de diferenca de LAPACK punha uma direcao
+    # de um lado num criterio e do outro no outro: a variancia ia a zero pela
+    # pinv enquanto o erro continuava no residuo -> z = |e|/1e-9 = 2e12. A CI
+    # pegou isso com numpy 2.5.3 (aqui, com 2.4.3, passava).
+    #
+    # O corte fica no unico lugar do espectro onde nenhuma versao discorda: o
+    # nulo EXATO criado pela gauge (sigma/sigma0 ~ 1e-17) esta nove ordens de
+    # grandeza abaixo do primeiro sigma quase-nulo, e max(A.shape)*eps cai nesse
+    # vao. Direcao quase-nula NAO e descartada: fica com sigma enorme na cov, que
+    # e a mesma afirmacao ("o dado nao mede isto") sem o penhasco.
+    U, sa, Vt = np.linalg.svd(A, full_matrices=False)
+    ka = int((sa > max(A.shape) * np.finfo(float).eps * (sa[0] if len(sa) else 1.0)).sum())
+    th = Vt[:ka].T @ ((U[:, :ka].T @ b) / sa[:ka])
+    cov = (Vt[:ka].T / sa[:ka] ** 2) @ Vt[:ka]     # == pinv(A.T@A) no mesmo posto
     # posto e espaco nulo do desenho SEM gauge: e isso que diz o que o dado mede
     s = np.linalg.svd(Xw, compute_uv=False)
     tol = max(Xw.shape) * np.finfo(float).eps * (s[0] if len(s) else 1.0)
     posto = int((s > max(tol, 1e-9 * (s[0] if len(s) else 1))).sum())
-    F = A.T @ A
-    cov = np.linalg.pinv(F)
-    return th, cov, posto, X.shape[1] - posto, s
+    return th, cov, posto, X.shape[1] - posto, Vt[ka:]
 
 
 def espaco_nulo(X, tol=1e-8):

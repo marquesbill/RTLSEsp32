@@ -174,8 +174,10 @@ campanha tiver de parar no meio, são esses três pontos que valem.
   z_p = (θ̂_p − θ_p) / se(θ̂_p)       # escore padronizado
 ```
 
-Critério: `|z| ≤ ~3` para todo `p` **fora do espaço de calibre**. Resultados de
-referência no sítio de exemplo:
+Critério: `|z| ≤ ~3` para todo `p` **fora do espaço de calibre** (o `assert` no
+código corta em 4, que é o limite honesto para o *máximo* sobre ~50 colunas: se
+os `z` fossem normais padrão independentes, `P(max > 4) ≈ 50 × 6,3×10⁻⁵ ≈
+0,3 %`). Resultados de referência no sítio de exemplo:
 
 ```
   grau 1: 40 parâmetros, posto 35, |z|max = 2,04
@@ -183,6 +185,40 @@ referência no sítio de exemplo:
 ```
 
 `40 − 35 = 5` e `75 − 70 = 5`: exatamente o calibre. Cegueira zero.
+
+### O "fora do espaço de calibre" é a parte difícil
+
+Escrever `z = e/se` esconde uma decisão: *quais* direções estão fora. Seja
+
+```
+  A = [ X ; λ·R_g ]  = U Σ Vᵀ         (λ = 10³, o peso do calibre)
+```
+
+com posto numérico `k` ao corte `τ`. As duas quantidades do `z` saem daí:
+
+```
+  e   = ê − θ  projetado em span(V₁..V_k)      # o erro cobrado
+  Cov = V_{1:k} Σ_{1:k}⁻² V_{1:k}ᵀ             # a variância que o divide
+```
+
+Ambas dependem do **mesmo** `k`. Se a projeção usar `k` e a covariância usar
+`k′ ≠ k`, uma direção pode ter variância zerada (`se → 0`) e erro cobrado
+(`e ≠ 0`) ao mesmo tempo, e `z` estoura sem que nada esteja errado com o
+estimador. É por isso que `gls()` devolve a base do nulo junto com a `cov`: são
+a mesma decomposição, não duas.
+
+Resta escolher `τ`. Aqui o espectro de `A` tem um vão largo — os `p − k` valores
+criados pelo calibre são nulos exatos, e aparecem em `σ/σ₀ ~ 10⁻¹⁷` (ruído de
+arredondamento), enquanto o menor σ genuíno está em `~10⁻⁷`. Nove ordens de
+grandeza. `τ = max(A.shape)·ε` cai no meio desse vão, e é a mesma tolerância que
+o LAPACK usa por padrão. **A folga é o invariante**, e o teste a cobra
+explicitamente: se `τ` cair dentro de um contínuo de σ, o `z` deixa de ser
+reprodutível entre implementações de BLAS e o teste perde sentido — situação
+medida e documentada em [CI-CD.md §3.1](../CI-CD.md).
+
+Uma direção *quase* nula (σ pequeno mas real) não é descartada: fica na `cov`
+com `se` enorme, que é a mesma afirmação — "o dado não mede isto" — sem o
+penhasco de uma classificação binária.
 
 Este é um teste de **recuperação**, não de ajuste: ele falha se um sinal estiver
 trocado, se uma coluna estiver na posição errada, ou se o calibre for
