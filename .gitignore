@@ -1,0 +1,36 @@
+# Segredos — NUNCA versionar. Copie de credenciais.h.exemplo.
+firmware/*/main/credenciais.h
+firmware/*/src/credenciais.h
+credenciais.h
+.env
+
+# Dados de medicao: crescem em GB e sao do SITIO, nao do projeto.
+# Aponte RTLS_DADOS para onde eles devem morar (ver docs/INSTALL.md).
+dados/
+*.jsonl
+*.ply
+*.pcd
+
+# Sitios reais. sitios/exemplo.json e versionado de proposito; o seu nao precisa
+# ser — a planta de uma casa habitada e dado pessoal (LGPD art. 5, I).
+sitios/*.json
+!sitios/exemplo.json
+
+# Build
+build/
+.pio/
+sdkconfig
+sdkconfig.old
+managed_components/
+dependencies.lock
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+venv/
+
+# SO / editor
+.DS_Store
+*.swp
+.vscode/
+.idea/

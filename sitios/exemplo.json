@@ -1,0 +1,326 @@
+{
+ "nome": "Casa Exemplo",
+ "descricao": "Sitio sintetico de 48 m2 que acompanha o repositorio. Nao e um lugar real: existe para os testes rodarem e para servir de gabarito de formato. Copie, meca o seu, substitua.",
+ "convencao": "metros; origem no canto superior esquerdo; x cresce para a direita; y cresce para BAIXO; z cresce do chao para o teto",
+ "limites": {
+  "x": [
+   0.0,
+   8.0
+  ],
+  "y": [
+   0.0,
+   6.0
+  ],
+  "z": [
+   0.0,
+   2.6
+  ]
+ },
+ "recuo": 0.05,
+ "comodos": {
+  "sala": [
+   [
+    0.0,
+    0.0
+   ],
+   [
+    4.5,
+    0.0
+   ],
+   [
+    4.5,
+    3.5
+   ],
+   [
+    0.0,
+    3.5
+   ]
+  ],
+  "cozinha": [
+   [
+    4.5,
+    0.0
+   ],
+   [
+    8.0,
+    0.0
+   ],
+   [
+    8.0,
+    3.5
+   ],
+   [
+    4.5,
+    3.5
+   ]
+  ],
+  "quarto1": [
+   [
+    0.0,
+    3.5
+   ],
+   [
+    3.2,
+    3.5
+   ],
+   [
+    3.2,
+    6.0
+   ],
+   [
+    0.0,
+    6.0
+   ]
+  ],
+  "quarto2": [
+   [
+    3.2,
+    3.5
+   ],
+   [
+    6.0,
+    3.5
+   ],
+   [
+    6.0,
+    6.0
+   ],
+   [
+    3.2,
+    6.0
+   ]
+  ],
+  "banho": [
+   [
+    6.0,
+    3.5
+   ],
+   [
+    8.0,
+    3.5
+   ],
+   [
+    8.0,
+    6.0
+   ],
+   [
+    6.0,
+    6.0
+   ]
+  ]
+ },
+ "portas": {
+  "entrada": [
+   "x",
+   0.0,
+   0.9,
+   1.7
+  ],
+  "sala-cozinha": [
+   "x",
+   4.5,
+   1.2,
+   2.0
+  ],
+  "sala-quarto1": [
+   "y",
+   3.5,
+   0.8,
+   1.6
+  ],
+  "sala-quarto2": [
+   "y",
+   3.5,
+   3.6,
+   4.4
+  ],
+  "quarto2-banho": [
+   "x",
+   6.0,
+   4.1,
+   4.9
+  ]
+ },
+ "janelas": {
+  "J1": [
+   [
+    1.0,
+    0.0
+   ],
+   [
+    2.6,
+    0.0
+   ]
+  ],
+  "J2": [
+   [
+    5.5,
+    0.0
+   ],
+   [
+    7.0,
+    0.0
+   ]
+  ],
+  "J3": [
+   [
+    0.8,
+    6.0
+   ],
+   [
+    2.4,
+    6.0
+   ]
+  ]
+ },
+ "classes_parede": {
+  "alvenaria": {
+   "W_dB": 6.0,
+   "fonte": "ajuste da malha; ITU-R P.2040 tab.3 da 5-8 dB p/ tijolo de 10 cm em 2,4 GHz"
+  },
+  "drywall": {
+   "W_dB": 2.5,
+   "fonte": "ITU-R P.2040 / Rappaport cap.4"
+  },
+  "vidro": {
+   "W_dB": 2.0,
+   "fonte": "ITU-R P.2040, vidro comum 4 mm"
+  }
+ },
+ "classe_padrao": "alvenaria",
+ "ancoras": {
+  "A1": {
+   "pos": [
+    0.05,
+    1.8,
+    1.1
+   ],
+   "mac": "02:00:00:00:00:01",
+   "radio": 1,
+   "comodo": "sala",
+   "nota": "parede esquerda da sala, altura de torso",
+   "tipo": "c3_sem_antena",
+   "yaw": 0.0,
+   "p_tx_dBm": 9.0
+  },
+  "A2": {
+   "pos": [
+    4.45,
+    2.9,
+    0.3
+   ],
+   "mac": "02:00:00:00:00:02",
+   "radio": 2,
+   "comodo": "sala",
+   "nota": "divisoria sala/cozinha, lado SALA, altura de tomada",
+   "tipo": "c3_sem_antena",
+   "yaw": 180.0,
+   "p_tx_dBm": 9.0
+  },
+  "A3": {
+   "pos": [
+    7.95,
+    1.2,
+    1.1
+   ],
+   "mac": "02:00:00:00:00:03",
+   "radio": 3,
+   "comodo": "cozinha",
+   "nota": "parede externa da cozinha",
+   "tipo": "c3_sem_antena",
+   "yaw": 180.0,
+   "p_tx_dBm": 9.0
+  },
+  "A4": {
+   "pos": [
+    2.0,
+    3.45,
+    0.3
+   ],
+   "mac": "02:00:00:00:00:04",
+   "radio": 4,
+   "comodo": "sala",
+   "nota": "parede sala/quarto1, lado SALA",
+   "tipo": "c3_sem_antena",
+   "yaw": 0.0,
+   "p_tx_dBm": 9.0
+  },
+  "A5": {
+   "pos": [
+    0.05,
+    5.2,
+    0.3
+   ],
+   "mac": "02:00:00:00:00:05",
+   "radio": 5,
+   "comodo": "quarto1",
+   "nota": "parede esquerda do quarto1",
+   "tipo": "c3_sem_antena",
+   "yaw": 0.0,
+   "p_tx_dBm": 9.0
+  },
+  "A6": {
+   "pos": [
+    5.8,
+    5.95,
+    1.1
+   ],
+   "mac": "02:00:00:00:00:06",
+   "radio": 6,
+   "comodo": "quarto2",
+   "nota": "parede de fundo do quarto2",
+   "tipo": "c3_sem_antena",
+   "yaw": 270.0,
+   "p_tx_dBm": 9.0
+  }
+ },
+ "emissores_fixos": {
+  "ap_wifi": {
+   "pos": [
+    4.3,
+    2.0,
+    2.1
+   ],
+   "tipo": "roteador",
+   "nota": "so geometria; nao e ancora",
+   "tipo_rf": "ap"
+  },
+  "tv": {
+   "pos": [
+    0.4,
+    1.2,
+    1.0
+   ],
+   "tipo": "ble-estatico",
+   "tipo_rf": "mini_teclado"
+  },
+  "balanca": {
+   "pos": [
+    7.2,
+    5.1,
+    0.05
+   ],
+   "tipo": "ble-estatico",
+   "tipo_rf": "mini_teclado"
+  }
+ },
+ "radio": {
+  "f_Hz": 2440000000.0,
+  "ptx_niveis_dBm": [
+   9,
+   6,
+   3,
+   0,
+   -3,
+   -6,
+   -9,
+   -12
+  ],
+  "piso_dBm": -95,
+  "limiar_deteccao_dBm": -90.75,
+  "sigma_deteccao_dB": 7.75,
+  "piso_radio_dBm": -101,
+  "nota_piso": "piso_radio e o ruido do CI; piso e o piso PRATICO de captura de advertising (o pacote precisa de SNR, nao so de estar acima do ruido). A ~6 dB do piso do radio so os desvanecimentos favoraveis passam: e ai que a censura comeca. Meca o seu com uma varredura de ptx — ver docs/matematica/02-censura.md."
+ },
+ "ancoras_nota": "mac = o MAC de fabrica do STA da placa (esptool read_mac). E ele, e nao um numero gravado no firmware, que identifica a ancora: as N placas rodam o MESMO binario. Os daqui sao de exemplo (02:.. = localmente administrado, nao existe em hardware) — troque pelos seus antes de gerar o firmware do alvo."
+}

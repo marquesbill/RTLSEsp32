@@ -1,0 +1,18 @@
+# BLE 5.0 extended scan — a razao de a C3 existir neste projeto. As libs
+# pre-compiladas do core Arduino trazem EXT_ADV/EXT_SCAN DESLIGADOS, por isso
+# este firmware e ESP-IDF e nao Arduino.
+CONFIG_BT_ENABLED=y
+CONFIG_BT_NIMBLE_ENABLED=y
+CONFIG_BT_NIMBLE_50_FEATURE_SUPPORT=y
+CONFIG_BT_NIMBLE_EXT_ADV=y
+CONFIG_BT_NIMBLE_ROLE_PERIPHERAL=n
+CONFIG_BT_NIMBLE_ROLE_BROADCASTER=y
+# SuperMini nao expoe UART0 no USB: o console tem de sair pelo USB Serial/JTAG
+CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG=y
+# log do NimBLE roubaria banda do fluxo @b
+CONFIG_LOG_DEFAULT_LEVEL_ERROR=y
+# app de 3 MB: com WiFi o firmware passou de 95% da particao padrao de 1 MB
+CONFIG_PARTITION_TABLE_CUSTOM=y
+CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="particoes.csv"
+# a C3 SuperMini Plus tem 4 MB; o default de 2 MB nao comporta a particao de 3 MB
+CONFIG_ESPTOOLPY_FLASHSIZE_4MB=y

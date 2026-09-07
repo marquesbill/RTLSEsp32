@@ -1,0 +1,6 @@
+# A tabela padrao do IDF da 1 MB de app e deixa 3 MB dos 4 ociosos; o firmware
+# com WiFi ja ocupava 95%. Aqui o app tem 3 MB — sobra para OTA no futuro.
+# Name,     Type, SubType, Offset,   Size
+nvs,        data, nvs,     0x9000,   0x6000
+phy_init,   data, phy,     0xf000,   0x1000
+factory,    app,  factory, 0x10000,  0x300000

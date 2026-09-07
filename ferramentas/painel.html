@@ -1,0 +1,537 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Malha RTLS</title>
+<style>
+  :root { color-scheme: dark;
+          --bg:#04070c; --painel:#0a1016; --linha:#1b2c3a; --txt:#eefbf6;
+          --fraco:#8fb1c2; --rotulo:#63a6c6; --est:#2ee6c8; --real:#fde725;
+          --alarme:#ff4fd8; }
+  html, body { margin:0; height:100%; background:var(--bg); color:var(--txt);
+               font:14px/1.5 -apple-system, Helvetica, Arial, sans-serif; }
+  body { display:flex; flex-direction:column; align-items:center; }
+  #topo { display:flex; flex-wrap:wrap; gap:6px; align-items:center; padding:7px 8px 3px; }
+  #topo button { background:var(--painel); color:var(--fraco); border:1px solid var(--linha);
+                 border-radius:6px; padding:5px 16px; font:inherit; cursor:pointer; }
+  #topo button[aria-selected=true] { background:#143046; color:#fff; border-color:#3d8fb8; }
+  #camadas { display:flex; gap:2px; margin-left:10px; border-left:1px solid var(--linha);
+             padding-left:12px; align-items:center; }
+  #camadas label { display:flex; align-items:center; gap:5px; padding:3px 8px; cursor:pointer;
+                   border-radius:5px; color:var(--fraco); font-size:13px; }
+  #camadas label:has(:checked) { color:#a0da39; }
+  #camadas input[type=checkbox] { accent-color:#21918c; margin:0; }
+  #corte { display:none; align-items:center; gap:7px; color:var(--fraco); font-size:13px;
+           margin-left:10px; border-left:1px solid var(--linha); padding-left:12px; }
+  #corte input { accent-color:#3d8fb8; width:130px; }
+  #corte b { color:var(--txt); font-variant-numeric:tabular-nums; }
+  /* width:100% e nao fit-content: com a largura indefinida o max-width:100% do
+     SVG resolvia contra uma caixa que dependia dele, e o mapa encolhia a um
+     terco da tela. */
+  #palco { display:flex; gap:14px; align-items:flex-start; justify-content:center;
+           width:100%; box-sizing:border-box; padding:0 8px; }
+  /* o SVG carimba width/height proprios: sem tamanho intrinseco ele colapsa a
+     zero dentro do flex, e pior, o max-height deixaria a caixa mais larga que o
+     desenho — o canvas se alinha pelo retangulo do elemento e sairia torto. */
+  #m { position:relative; line-height:0; min-width:0; }
+  /* height fixa e width:auto: o SVG tem tamanho intrinseco proprio, entao com
+     max-height ele so ENCOLHIA — nunca crescia para ocupar a tela. */
+  #m svg { height:calc(100vh - 90px); width:auto; max-width:100%; display:block;
+           position:relative; z-index:1; }
+  #cv { position:absolute; left:0; top:0; pointer-events:none; z-index:2; }
+  /* a ortofoto entra ATRAS do SVG: as paredes, os enlaces e as ancoras que o
+     servidor desenhou continuam por cima da casa de verdade. */
+  #orto { position:absolute; z-index:0; display:none; image-rendering:auto;
+          filter:brightness(.42) saturate(.42) contrast(.95); }
+  /* sobre a foto o texto do SVG sumia: contorno escuro por baixo do glifo. */
+  #m.real svg text { paint-order:stroke fill; stroke:#0b0e12; stroke-width:2.6px;
+                     stroke-linejoin:round; }
+  /* o nome do comodo era escuro para ficar atras do preenchimento idealizado;
+     sem ele, sobre a foto, some. (#39424e = malha, #24404e = localizacao) */
+  #m.real svg text[fill="#39424e"], #m.real svg text[fill="#24404e"] { fill:#93aec2; }
+  /* com a ortofoto ligada o fundo e os poligonos idealizados dos comodos saem:
+     eles sao justamente a planta "como deveria ser". */
+  #m.real svg > rect:first-of-type, #m.real svg polygon { display:none; }
+  /* camada viva vai toda para o canvas: o que o servidor desenhou ha ate 30 s
+     seria um alvo defasado por cima de um alvo atual. */
+  #m svg #nuvem, #m svg #alvo, #m svg #real { display:none; }
+  svg.h-an .an, svg.h-di .di, svg.h-li .li, svg.h-anc .anc { display:none; }
+  #tri { display:none; position:relative; height:calc(100vh - 90px);
+         width:min(1150px, 100%); line-height:0; }
+  #gl { width:100%; height:100%; display:block; cursor:grab; touch-action:none;
+        background:#04070c; border:1px solid var(--linha); border-radius:8px;
+        box-sizing:border-box; }
+  #gl.arrasta { cursor:grabbing; }
+  #hud { width:258px; flex:none; font:12.5px/1.5 ui-monospace, Menlo, monospace;
+         color:var(--fraco); }
+  #hud h4 { margin:14px 0 4px; font:bold 10.5px/1 -apple-system, Helvetica, sans-serif;
+            letter-spacing:1.5px; color:var(--rotulo); text-transform:uppercase;
+            border-bottom:1px solid var(--linha); padding-bottom:4px; }
+  #hud h4:first-child { margin-top:2px; }
+  #hud .r { display:flex; justify-content:space-between; gap:10px; padding:1px 0; }
+  /* b.g e nao .g: '#hud .r b' ja pinta com a mesma especificidade e vinha
+     antes — sem o tipo no seletor a cor do valor nunca aparecia. */
+  #hud .r b { font-weight:600; color:var(--txt); font-variant-numeric:tabular-nums; }
+  #hud b.g { color:var(--est); } #hud b.y { color:var(--real); }
+  #hud b.x { color:var(--alarme); }
+  #hud .leg { display:flex; flex-wrap:wrap; gap:4px 10px; margin-top:5px; }
+  #hud .leg span { display:flex; align-items:center; gap:4px; font-size:11.5px; }
+  #hud .leg i { width:9px; height:9px; border-radius:2px; }
+  #rodape { height:30px; display:flex; align-items:center; gap:12px; color:var(--fraco);
+            font-size:12.5px; }
+  #pisca { width:8px; height:8px; border-radius:50%; background:#a0da39; transition:opacity .4s; }
+  .off { opacity:.15; }
+  @media (max-width:820px) { #palco { flex-direction:column; align-items:center; }
+                             #hud { width:100%; max-width:520px; } }
+</style>
+<div id="topo"><span id="abas"></span><span id="camadas"></span>
+  <span id="corte">teto <input id="sc" type="range" min="0.3" max="2.8" step="0.05" value="2.05"><b id="scv">2,05 m</b></span>
+</div>
+<div id="palco">
+  <div id="m">carregando…<canvas id="cv"></canvas></div>
+  <div id="tri"><canvas id="gl"></canvas></div>
+  <aside id="hud"></aside>
+</div>
+<div id="rodape"><span id="pisca"></span><span id="txt">carregando…</span></div>
+<script>
+// O SVG entra INLINE (nao num <img>): o canvas precisa da transformada que o
+// servidor carimba no <svg>, e o HUD precisa do data-hud la dentro.
+// A terceira vista nao vem do servidor: e a casca da reconstrucao, um arquivo so.
+const VISTAS = [['malha.svg','Malha'], ['loo.svg','Localizacao'], [null,'3D']];
+// P: o SVG inteiro, caro, do laco de 30 s. PV: so a camada viva, do vivo.json que
+// o daemon publica a 2 Hz. O fundo (planta, os 6 alvos do LOO) nao muda em 0,5 s.
+const P = 30000, PV = 500;
+const NAC = 60;   // 30 s a 2 Hz: a pilha cobre exatamente um ciclo da pagina
+const CEL = 4;    // px de tela por celula da grade de densidade
+const GAMA = 0.65;// realce das bordas da nuvem; unico numero de gosto aqui
+
+const CAMADAS = [['re','Real'], ['an','Anel'], ['di','Disco'], ['li','Linha'],
+                 ['anc','Ancoras'], ['nv','Nuvem'], ['mat','Material']];
+const cx = document.getElementById('m'), pisca = document.getElementById('pisca'),
+      txt = document.getElementById('txt'), abas = document.getElementById('abas'),
+      hud = document.getElementById('hud'), cv = document.getElementById('cv'),
+      tri = document.getElementById('tri'), sc = document.getElementById('sc'),
+      scv = document.getElementById('scv'), corte = document.getElementById('corte'),
+      g2 = cv.getContext('2d');
+let atual = 0, err = 0, pilha = [], t_ult = 0, jv = null, hsvg = {};
+const on = Object.fromEntries(CAMADAS.map(([k]) => [k, localStorage.getItem('c_'+k) !== '0']));
+
+// ---- ortofoto: a planta como a casa E, nao como a trena disse ------------------
+let ORTO = null;
+const orto = document.createElement('img');
+orto.id = 'orto'; orto.alt = '';
+fetch('planta.json').then(r => r.json()).then(j => { ORTO = j; orto.src = 'planta.png'; })
+  .catch(() => { ORTO = null; });
+
+VISTAS.forEach(([arq, rot], i) => {
+  const b = document.createElement('button');
+  b.textContent = rot;
+  b.onclick = () => { atual = i; pinta(); tick(); };
+  abas.appendChild(b);
+});
+CAMADAS.forEach(([k, rot]) => {
+  const l = document.createElement('label'), i = document.createElement('input');
+  i.type = 'checkbox'; i.checked = on[k]; i.dataset.k = k;
+  i.onchange = () => { on[k] = i.checked; localStorage.setItem('c_'+k, i.checked ? '1':'0');
+                       aplica(); pede3d(); };
+  l.append(i, rot); document.getElementById('camadas').appendChild(l);
+});
+// Cada aba usa um subconjunto: mostrar caixa que nao faz nada e ruido.
+const SO3D = {mat:1}, SO2D = {re:1, an:1, di:1, li:1, anc:1, nv:1};
+function pinta() {
+  [...abas.children].forEach((b,i) => b.setAttribute('aria-selected', i===atual));
+  const e3 = atual === 2;
+  document.querySelectorAll('#camadas label').forEach(l => {
+    const k = l.querySelector('input').dataset.k;
+    l.style.display = (e3 ? SO3D[k] : SO2D[k]) ? '' : 'none';
+  });
+  corte.style.display = e3 ? 'flex' : 'none';
+  cx.style.display = e3 ? 'none' : '';
+  tri.style.display = e3 ? 'block' : 'none';
+}
+
+// Reaplicado a CADA troca de SVG: o servidor manda o mapa completo, entao sem
+// isto as caixas se desmarcavam sozinhas a cada 30 s.
+function aplica() {
+  const s = cx.querySelector('svg');
+  if (s) CAMADAS.forEach(([k]) => s.classList.toggle('h-'+k, !on[k]));
+  cx.classList.toggle('real', !!(on.re && ORTO));
+  desenha();
+}
+function tick() {
+  if (atual === 2) { carrega3d(); pede3d(); vivoTick(); marca(); return; }
+  fetch(VISTAS[atual][0] + '?t=' + Date.now())
+    .then(r => r.ok ? r.text() : Promise.reject(r.status))
+    .then(t => {
+      cx.innerHTML = t; cx.append(orto, cv);
+      const s = cx.querySelector('svg[data-hud]');
+      hsvg = s ? JSON.parse(s.dataset.hud) : {};
+      pilha = [];            // ciclo novo: a exposicao recomeca junto com a pagina
+      aplica(); err = 0; marca(); mostraHud(); vivoTick();
+    })
+    .catch(() => { err++; marca(); });
+}
+
+// ---- rampa viridis (256 entradas, interpolada de 9 paradas) -------------------
+const VIR = ['#440154','#472d7b','#3b528b','#2c728e','#21918c','#28ae80','#5ec962','#a0da39','#fde725']
+  .map(h => [1,3,5].map(i => parseInt(h.slice(i, i+2), 16)));
+const LUT = new Uint8Array(256*3);
+for (let i = 0; i < 256; i++) {
+  const u = i/255*(VIR.length-1), k = Math.min(VIR.length-2, u|0), f = u-k;
+  for (let c = 0; c < 3; c++) LUT[i*3+c] = VIR[k][c] + f*(VIR[k+1][c] - VIR[k][c]);
+}
+const oc = document.createElement('canvas'), o2 = oc.getContext('2d');
+
+// ---- camada viva --------------------------------------------------------------
+// A nuvem ACUMULA: guardamos as ultimas NAC nuvens e contamos as particulas numa
+// grade. Contagem e soma, entao cada uma das NAC nuvens pesa exatamente 1/NAC, sem
+// depender da ordem — que e o problema que a opacidade 1/k resolve quando se
+// empilha com alpha por cima de alpha. Aqui nao ha empilhamento: ha histograma.
+// O divisor NAO e o maximo da grade (isso renormalizaria e a imagem ficaria com o
+// mesmo brilho desde o primeiro quadro). E o pico ESPERADO de uma gaussiana de N
+// particulas e desvio sp, com a pilha cheia: assim os 30 s aparecem como a
+// densidade subindo, e uma nuvem larga fica legitimamente mais palida que uma
+// apertada.
+function desenha() {
+  const s = cx.querySelector('svg[data-esc]');
+  if (!s || atual === 2) { cv.width = cv.height = 0; return; }
+  const r = s.getBoundingClientRect(), dpr = devicePixelRatio || 1;
+  if (cv.width !== Math.round(r.width*dpr)) { cv.width = r.width*dpr; cv.height = r.height*dpr; }
+  cv.style.width = r.width+'px'; cv.style.height = r.height+'px';
+  g2.setTransform(dpr, 0, 0, dpr, 0, 0);
+  g2.clearRect(0, 0, r.width, r.height);
+  const f = r.width / s.viewBox.baseVal.width, esc = +s.dataset.esc * f;
+  const X = v => (+s.dataset.mx * f + v * esc), Y = v => (+s.dataset.my * f + v * esc);
+
+  if (on.re && ORTO) {
+    orto.style.display = 'block';
+    orto.style.left = X(ORTO.x0)+'px'; orto.style.top = Y(ORTO.y0)+'px';
+    orto.style.width = (ORTO.x1-ORTO.x0)*esc+'px';
+    orto.style.height = (ORTO.y1-ORTO.y0)*esc+'px';
+  } else orto.style.display = 'none';
+  if (!jv) return;
+
+  if (on.nv && pilha.length) {
+    const GW = Math.ceil(r.width/CEL), GH = Math.ceil(r.height/CEL);
+    const c = new Float32Array(GW*GH);
+    let n = 0;
+    for (const nu of pilha) { n = Math.max(n, nu.length);
+      for (const q of nu) {
+        const i = X(q[0])/CEL | 0, j = Y(q[1])/CEL | 0;
+        if (i >= 0 && i < GW && j >= 0 && j < GH) c[j*GW+i]++;
+      }
+    }
+    const mcel = CEL/esc, sp = Math.max(jv.spread, 0.06);
+    const pico = NAC * n * mcel*mcel / (2*Math.PI*sp*sp);
+    oc.width = GW; oc.height = GH;
+    const im = o2.createImageData(GW, GH), d = im.data;
+    for (let i = 0; i < c.length; i++) {
+      if (!c[i]) continue;
+      const v = Math.pow(Math.min(1, c[i]/pico), GAMA), l = (v*255)|0;
+      d[i*4] = LUT[l*3]; d[i*4+1] = LUT[l*3+1]; d[i*4+2] = LUT[l*3+2];
+      d[i*4+3] = Math.min(255, v*300);
+    }
+    o2.putImageData(im, 0, 0);
+    g2.imageSmoothingEnabled = true;      // a interpolacao do drawImage e o borrao
+    g2.drawImage(oc, 0, 0, r.width, r.height);
+  }
+  const ex = X(jv.x), ey = Y(jv.y), vd = jv.verdade;
+  if (on.li && vd) { g2.strokeStyle = '#fde725'; g2.lineWidth = 2; g2.setLineDash([5,4]);
+    g2.beginPath(); g2.moveTo(X(vd[0]), Y(vd[1])); g2.lineTo(ex, ey); g2.stroke();
+    g2.setLineDash([]); }
+  if (on.an) { const rr = Math.max(jv.spread*esc, 6);
+    g2.strokeStyle = '#2ee6c8'; g2.fillStyle = 'rgba(46,230,200,.10)'; g2.lineWidth = 2;
+    g2.beginPath(); g2.arc(ex, ey, rr, 0, 7); g2.fill(); g2.stroke(); }
+  if (on.di) {
+    g2.strokeStyle = '#2ee6c8'; g2.lineWidth = 2.5;
+    g2.beginPath(); g2.arc(ex, ey, 5, 0, 7); g2.stroke();
+    if (vd) { g2.fillStyle = '#fde725'; g2.strokeStyle = '#04070c';
+      g2.beginPath(); g2.arc(X(vd[0]), Y(vd[1]), 7, 0, 7); g2.fill(); g2.stroke(); }
+  }
+}
+
+function vivoTick() {
+  fetch('vivo.json?t=' + Date.now())
+    .then(r => r.ok ? r.json() : Promise.reject(r.status))
+    .then(j => {
+      // o rotulo aberto da campanha manda: o alvo_verdade.json do daemon fica
+      // congelado no gabarito de outro dia.
+      const h = hsvg;
+      if (h.real) { j.verdade = [h.real.x, h.real.y]; j.ponto = h.real.ponto;
+        j.erro = Math.hypot(j.x - h.real.x, j.y - h.real.y); }
+      if (j.t !== t_ult) {            // daemon travado nao vira exposicao
+        t_ult = j.t;
+        if (j.nuvem && j.nuvem.length) { pilha.push(j.nuvem); if (pilha.length > NAC) pilha.shift(); }
+      }
+      jv = j; desenha(); pede3d(); mostraHud();
+    })
+    .catch(() => { jv = null; desenha(); mostraHud('sem vivo.json'); });
+}
+
+// ---- 3D lowpoly, SEM DIFFUSE --------------------------------------------------
+// A casca da reconstrucao em cubos de 12 cm, so as faces expostas. A cor e a
+// CLASSE de material e o sombreado e so a normal: textura de foto esconde
+// justamente o que se quer conferir aqui, que e a geometria que o modelo usa.
+const CANTO = [[[1,0,0],[1,1,0],[1,1,1],[1,0,1]], [[0,0,0],[0,0,1],[0,1,1],[0,1,0]],
+               [[0,1,0],[0,1,1],[1,1,1],[1,1,0]], [[0,0,0],[1,0,0],[1,0,1],[0,0,1]],
+               [[0,0,1],[1,0,1],[1,1,1],[0,1,1]], [[0,0,0],[0,1,0],[1,1,0],[1,0,0]]];
+const NRM = [[1,0,0],[-1,0,0],[0,1,0],[0,-1,0],[0,0,1],[0,0,-1]];
+const TRI = [0,1,2,0,2,3];
+const CLSCOR = [[0,0,0],[201,111,74],[111,179,210],[168,128,47],[125,91,166],[217,217,217]];
+const CLSNOME = ['','parede','azulejo','madeira','tecido','metal'];
+const COR = {anc:[255,45,85], ap:[0,229,255], est:[46,230,200], real:[253,231,37]};
+
+const glc = document.getElementById('gl');
+let gl = null, prog = null, uni = {}, bufC = null, bufM = null, malha = null,
+    az = -2.35, el = 0.72, dist = 12, precisa = false, pedido = 0, carregando = false;
+
+const VS = `attribute vec3 aPos; attribute vec3 aNrm; attribute vec4 aCor;
+uniform mat4 uMVP; uniform float uCorte, uMat; uniform vec3 uLuz;
+varying vec4 vCor;
+void main(){
+  if (aPos.z > uCorte) { gl_Position = vec4(2.0,2.0,2.0,1.0); vCor = vec4(0.0); return; }
+  float l = 0.26 + 0.74 * max(dot(normalize(aNrm), uLuz), 0.0);
+  vec3 base = vec3(0.60, 0.69, 0.75);
+  vec3 c = mix(mix(base, aCor.rgb, uMat), aCor.rgb, aCor.a);
+  gl_Position = uMVP * vec4(aPos, 1.0);
+  vCor = vec4(c * l, 1.0);
+}`;
+const FS = `precision mediump float; varying vec4 vCor;
+void main(){ if (vCor.a < 0.5) discard; gl_FragColor = vCor; }`;
+
+function mul(a, b) {                       // coluna-maior, a depois b
+  const o = new Float32Array(16);
+  for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) {
+    let s = 0; for (let k = 0; k < 4; k++) s += a[k*4+j] * b[i*4+k];
+    o[i*4+j] = s;
+  }
+  return o;
+}
+const sub = (a,b) => [a[0]-b[0], a[1]-b[1], a[2]-b[2]];
+const cruz = (a,b) => [a[1]*b[2]-a[2]*b[1], a[2]*b[0]-a[0]*b[2], a[0]*b[1]-a[1]*b[0]];
+const pto = (a,b) => a[0]*b[0]+a[1]*b[1]+a[2]*b[2];
+const uni1 = a => { const m = Math.hypot(...a); return [a[0]/m, a[1]/m, a[2]/m]; };
+function olha(e, c, up) {
+  const z = uni1(sub(e, c)), x = uni1(cruz(up, z)), y = cruz(z, x);
+  return new Float32Array([x[0],y[0],z[0],0, x[1],y[1],z[1],0, x[2],y[2],z[2],0,
+                           -pto(x,e), -pto(y,e), -pto(z,e), 1]);
+}
+function persp(f, a, n, fr) {
+  const t = 1/Math.tan(f/2);
+  return new Float32Array([t/a,0,0,0, 0,t,0,0, 0,0,(fr+n)/(n-fr),-1, 0,0,2*fr*n/(n-fr),0]);
+}
+
+function malha3d(buf) {
+  const dv = new DataView(buf);
+  if (String.fromCharCode(...new Uint8Array(buf, 0, 4)) !== 'LP01') throw 'lowpoly.bin estranho';
+  const nx = dv.getUint16(4,true), ny = dv.getUint16(6,true), nz = dv.getUint16(8,true);
+  const vox = dv.getFloat32(10,true);
+  const ox = dv.getFloat32(14,true), oy = dv.getFloat32(18,true), oz = dv.getFloat32(22,true);
+  const n = dv.getUint32(26,true), F = new Uint8Array(buf, 30, n*5);
+  const pos = new Float32Array(n*18), nrm = new Int8Array(n*24), cor = new Uint8Array(n*24);
+  const conta = [0,0,0,0,0,0];
+  for (let f = 0; f < n; f++) {
+    const ix = F[f*5], iy = F[f*5+1], iz = F[f*5+2], d = F[f*5+3], c = F[f*5+4];
+    const q = CANTO[d], N = NRM[d], K = CLSCOR[c];
+    conta[c]++;
+    for (let t = 0; t < 6; t++) {
+      const v = q[TRI[t]], o = f*6 + t;
+      pos[o*3] = ox + (ix+v[0])*vox; pos[o*3+1] = oy + (iy+v[1])*vox;
+      pos[o*3+2] = oz + (iz+v[2])*vox;
+      nrm[o*4] = N[0]*127; nrm[o*4+1] = N[1]*127; nrm[o*4+2] = N[2]*127;
+      cor[o*4] = K[0]; cor[o*4+1] = K[1]; cor[o*4+2] = K[2]; cor[o*4+3] = 0;
+    }
+  }
+  return {pos, nrm, cor, n: n*6, faces: n, vox, conta,
+          c: [ox + nx*vox/2, oy + ny*vox/2, (oz + nz*vox)/2.4],
+          raio: Math.max(nx, ny) * vox, z0: oz, z1: oz + nz*vox};
+}
+function caixa(A, p0, p1, rgb) {
+  for (let d = 0; d < 6; d++) {
+    const q = CANTO[d], N = NRM[d];
+    for (let t = 0; t < 6; t++) {
+      const v = q[TRI[t]];
+      A.pos.push(v[0]?p1[0]:p0[0], v[1]?p1[1]:p0[1], v[2]?p1[2]:p0[2]);
+      A.nrm.push(N[0]*127, N[1]*127, N[2]*127, 0);
+      A.cor.push(rgb[0], rgb[1], rgb[2], 255);
+    }
+  }
+}
+// A ancora fica dentro da parede e o alvo dentro dos moveis: o cubo sozinho some
+// atras da geometria. Cada marcador leva uma haste fina ate ACIMA do corte, que
+// emerge no ar livre e diz onde a coisa esta mesmo quando o cubo esta enterrado.
+const TOPO = 2.60;
+function pino(A, x, y, z, rgb, r) {
+  caixa(A, [x-r, y-r, z-r], [x+r, y+r, z+r], rgb);          // o objeto, no lugar
+  caixa(A, [x-.018, y-.018, z], [x+.018, y+.018, TOPO], rgb);  // a haste
+}
+function marcadores() {
+  const A = {pos: [], nrm: [], cor: []};
+  if (ORTO) {
+    for (const p of Object.values(ORTO.ancoras)) pino(A, p[0], p[1], p[2], COR.anc, .09);
+    pino(A, ORTO.ap[0], ORTO.ap[1], ORTO.ap[2], COR.ap, .11);
+  }
+  if (jv) {
+    pino(A, jv.x, jv.y, 0.75, COR.est, .07);
+    if (jv.verdade) pino(A, jv.verdade[0], jv.verdade[1], 0.75, COR.real, .07);
+  }
+  return {pos: new Float32Array(A.pos), nrm: new Int8Array(A.nrm),
+          cor: new Uint8Array(A.cor), n: A.pos.length/3};
+}
+
+function sobe(tipo, src) {
+  const s = gl.createShader(tipo); gl.shaderSource(s, src); gl.compileShader(s);
+  if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw gl.getShaderInfoLog(s);
+  return s;
+}
+// aNrm vai empacotada em 4 bytes por vertice (alinhamento), mas so 3 sao lidos:
+// com passo 0 o WebGL calcula 3 e a malha inteira sai torcida.
+function bufs(m, uso, B) {
+  const f = (dado, tam, tipo, passo) => {
+    const b = (B && B[0]) ? B.shift() : gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, b);
+    gl.bufferData(gl.ARRAY_BUFFER, dado, uso || gl.STATIC_DRAW);
+    return {b, tam, tipo, passo};
+  };
+  return {pos: f(m.pos, 3, gl.FLOAT, 0), nrm: f(m.nrm, 3, gl.BYTE, 4),
+          cor: f(m.cor, 4, gl.UNSIGNED_BYTE, 0), n: m.n};
+}
+function liga(B) {
+  const at = {aPos: B.pos, aNrm: B.nrm, aCor: B.cor};
+  for (const [nome, v] of Object.entries(at)) {
+    const l = gl.getAttribLocation(prog, nome);
+    gl.bindBuffer(gl.ARRAY_BUFFER, v.b); gl.enableVertexAttribArray(l);
+    gl.vertexAttribPointer(l, v.tam, v.tipo, v.tipo !== gl.FLOAT, v.passo, 0);
+  }
+}
+
+function carrega3d() {
+  if (gl || carregando) { pede3d(); return; }
+  carregando = true;
+  gl = glc.getContext('webgl', {antialias: true, alpha: false});
+  if (!gl) { txt.textContent = 'sem WebGL neste navegador'; return; }
+  prog = gl.createProgram();
+  gl.attachShader(prog, sobe(gl.VERTEX_SHADER, VS));
+  gl.attachShader(prog, sobe(gl.FRAGMENT_SHADER, FS));
+  gl.linkProgram(prog); gl.useProgram(prog);
+  for (const u of ['uMVP','uCorte','uMat','uLuz']) uni[u] = gl.getUniformLocation(prog, u);
+  gl.enable(gl.DEPTH_TEST); gl.disable(gl.CULL_FACE);
+  gl.clearColor(0.016, 0.027, 0.047, 1);
+  fetch('lowpoly.bin').then(r => r.ok ? r.arrayBuffer() : Promise.reject(r.status))
+    .then(b => {
+      malha = malha3d(b); bufC = bufs(malha);
+      dist = malha.raio * 1.15;
+      sc.min = malha.z0.toFixed(2); sc.max = malha.z1.toFixed(2);
+      pede3d(); mostraHud();
+    })
+    .catch(e => { txt.textContent = 'lowpoly.bin: ' + e; });
+}
+function pede3d() {
+  if (atual !== 2) return;
+  precisa = true;
+  if (!pedido) pedido = requestAnimationFrame(() => { pedido = 0; desenha3d(); });
+}
+function desenha3d() {
+  if (!gl || !malha || !precisa) return;
+  precisa = false;
+  const dpr = devicePixelRatio || 1, w = glc.clientWidth, h = glc.clientHeight;
+  if (glc.width !== Math.round(w*dpr)) { glc.width = w*dpr; glc.height = h*dpr; }
+  gl.viewport(0, 0, glc.width, glc.height);
+  gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+  const c = malha.c;
+  const e = [c[0] + dist*Math.cos(el)*Math.cos(az), c[1] + dist*Math.cos(el)*Math.sin(az),
+             c[2] + dist*Math.sin(el)];
+  const mvp = mul(persp(0.85, w/h, 0.1, dist*4 + 20), olha(e, c, [0,0,1]));
+  gl.uniformMatrix4fv(uni.uMVP, false, mvp);
+  gl.uniform3fv(uni.uLuz, uni1([0.42, -0.55, 0.72]));
+  gl.uniform1f(uni.uMat, on.mat ? 1 : 0);
+  gl.uniform1f(uni.uCorte, +sc.value);
+  liga(bufC); gl.drawArrays(gl.TRIANGLES, 0, bufC.n);
+  const M = marcadores();                          // marcadores ignoram o corte
+  if (M.n) {
+    // os mesmos 3 buffers reaproveitados: criar buffer por quadro vazava a GPU
+    // enquanto o mouse girava a cena.
+    bufM = bufs(M, gl.DYNAMIC_DRAW, bufM ? [bufM.pos.b, bufM.nrm.b, bufM.cor.b] : null);
+    gl.uniform1f(uni.uCorte, 1e3); gl.uniform1f(uni.uMat, 0);
+    liga(bufM); gl.drawArrays(gl.TRIANGLES, 0, M.n);
+  }
+}
+let arrasta = null;
+glc.addEventListener('pointerdown', e => { arrasta = [e.clientX, e.clientY];
+  glc.setPointerCapture(e.pointerId); glc.classList.add('arrasta'); });
+glc.addEventListener('pointermove', e => {
+  if (!arrasta) return;
+  az -= (e.clientX - arrasta[0]) * 0.008;
+  el = Math.max(-0.25, Math.min(1.45, el + (e.clientY - arrasta[1]) * 0.006));
+  arrasta = [e.clientX, e.clientY]; pede3d();
+});
+for (const ev of ['pointerup','pointercancel'])
+  glc.addEventListener(ev, () => { arrasta = null; glc.classList.remove('arrasta'); });
+glc.addEventListener('wheel', e => {
+  e.preventDefault();
+  dist = Math.max(2, Math.min(45, dist * Math.exp(e.deltaY * 0.0012))); pede3d();
+}, {passive: false});
+sc.oninput = () => { scv.textContent = (+sc.value).toFixed(2).replace('.', ',') + ' m';
+                     pede3d(); };
+
+// ---- HUD ---------------------------------------------------------------------
+const L = [];
+const sec = t => L.push(`<h4>${t}</h4>`);
+const row = (k, v, c) => L.push(`<div class="r"><span>${k}</span><b class="${c||''}">${v}</b></div>`);
+function mostraHud(erro) {
+  L.length = 0;
+  const h = hsvg;
+  if (erro) { sec('alvo'); row('estado', erro, 'x'); }
+  else if (jv) {
+    const velho = jv.ausente || jv.idade_alvo > 10;
+    sec(h.real ? `ponto ${h.real.ponto}` : 'alvo (cyd)');
+    if (h.real) row('real  x y', `${h.real.x.toFixed(2)}  ${h.real.y.toFixed(2)}`, 'y');
+    row('estimado  x y', `${jv.x.toFixed(2)}  ${jv.y.toFixed(2)}`, 'g');
+    if (jv.erro != null) row('erro', jv.erro.toFixed(2)+' m',
+                             jv.erro < 1 ? 'g' : (jv.erro < 2 ? 'y' : 'x'));
+    row('espalhamento', jv.spread.toFixed(2)+' m');
+    row('exposicao', `${pilha.length}/${NAC} quadros`);
+    // sem alarme: n_ancoras e a contagem da FATIA de meio segundo, oscila 0-6
+    // sozinha. Quem diz se o alvo sumiu e 'visto ha'.
+    row('ancoras ouvindo', `${jv.n_ancoras}/6`);
+    row('comodo', `${jv.comodo||'?'}  ${(jv.p_comodo*100).toFixed(0)}%`);
+    if (jv.p_parado != null) row('parado / ess',
+      `${(jv.p_parado*100).toFixed(0)}%  ${(jv.ess*100).toFixed(0)}%`);
+    row('offset b', jv.b.toFixed(1)+' dB');
+    row('visto ha', jv.idade_alvo.toFixed(0)+' s', velho ? 'x' : '');
+    if (h.vivo && h.vivo.cego) row('DAEMON CAIDO', 'sem juiz', 'x');
+  }
+  if (atual === 2 && malha) {
+    sec('reconstrucao');
+    row('cubo', (malha.vox*100).toFixed(0)+' cm');
+    row('faces', malha.faces.toLocaleString('pt-BR'));
+    row('corte do teto', (+sc.value).toFixed(2).replace('.', ',')+' m');
+    L.push('<div class="leg">' + CLSNOME.map((n, i) => i && malha.conta[i] ?
+      `<span><i style="background:rgb(${CLSCOR[i]})"></i>${n} ` +
+      `${(100*malha.conta[i]/malha.faces).toFixed(0)}%</span>` : '').join('') + '</div>');
+    L.push('<div class="leg" style="margin-top:8px">' +
+      `<span><i style="background:rgb(${COR.anc})"></i>ancora</span>` +
+      `<span><i style="background:rgb(${COR.ap})"></i>ap</span>` +
+      `<span><i style="background:rgb(${COR.est})"></i>estimado</span>` +
+      (jv && jv.verdade ? `<span><i style="background:rgb(${COR.real})"></i>real</span>` : '') +
+      '</div>');
+    L.push('<div class="r" style="margin-top:8px;color:#5c7f92">' +
+           '<span>arraste gira · roda aproxima</span></div>');
+  }
+  if (h.loo) { sec(`loo · ${h.janela} s`);
+    row('mediana', h.loo.mediana.toFixed(2)+' m', h.loo.mediana < 1 ? 'g' : 'y');
+    row('media / pior', `${h.loo.media.toFixed(2)}  ${h.loo.pior.toFixed(2)}`);
+    row('comodo certo', `${h.loo.acertos}/${h.loo.de}`);
+    L.push(`<div class="r"><span>ouvintes</span></div><div>${h.loo.ouvintes}</div>`); }
+  if (h.modelo) { sec('modelo');
+    row('A / n', `${h.modelo.A.toFixed(1)} dBm  ${h.modelo.n.toFixed(2)}`); }
+  hud.innerHTML = L.join('');
+}
+function marca() {
+  txt.textContent = (err ? `${err} falha(s) · ` : '') + new Date().toLocaleTimeString('pt-BR');
+  pisca.style.background = err ? 'var(--alarme)' : '#a0da39';
+  pisca.classList.remove('off');
+  setTimeout(() => pisca.classList.add('off'), 400);
+}
+addEventListener('resize', () => { desenha(); pede3d(); });
+pinta(); tick(); setInterval(tick, P); setInterval(vivoTick, PV);
+</script>

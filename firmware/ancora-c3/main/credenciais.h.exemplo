@@ -1,0 +1,4 @@
+// Copie para credenciais.h e preencha. credenciais.h nao vai para o git.
+#pragma once
+#define WIFI_SSID  "sua-rede"
+#define WIFI_SENHA "sua-senha"

@@ -1,0 +1,81 @@
+# CI do RTLSEsp32 — o porque de cada trabalho esta em docs/CI-CD.md.
+#
+# Regra que organiza este arquivo: a CI verifica o que NINGUEM olharia a olho nu
+# antes de um merge. Tres coisas se qualificam — a suite rodando em MAIS DE UM
+# sitio (senao "o sitio e dado" vira slogan), o .h gerado batendo byte a byte com
+# o gerador (senao o alvo desenha uma planta velha), e os dois firmwares
+# compilando sem placa na mesa.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:                        # push em cima de push cancela o build velho
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ------------------------------------------------------------------ host
+  # A matriz e a parte que importa. Um sitio so provaria que o codigo roda;
+  # dois provam que ele nao decorou o primeiro. O `outro` tem 4 ancoras (posto
+  # 9, nao 20), planta deitada (a tela gira) e 3 comodos: as tres dimensoes em
+  # que o codigo poderia estar chumbado.
+  suite:
+    name: suite (${{ matrix.sitio_nome }}, py${{ matrix.python }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false              # queremos saber se caiu em UM sitio ou nos dois
+      matrix:
+        python: ["3.10", "3.13"]    # menor suportada e a atual
+        sitio:
+          - { arq: sitios/exemplo.json,     nome: exemplo }
+          - { arq: testes/sitio_outro.json, nome: outro }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - run: pip install numpy
+      - name: o sitio e valido
+        run: PYTHONPATH=. python3 -m rtls.sitio ${{ matrix.sitio.arq }}
+      - name: suite (22 alvos)
+        env:
+          RTLS_SITIO: ${{ matrix.sitio.arq }}
+        run: PYTHONPATH=. python3 -m testes.roda_tudo -v
+
+  # -------------------------------------------------------- firmware ancora
+  ancora:
+    name: firmware ancora (ESP-IDF)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # credenciais.h e gitignorado; o build so precisa que ele EXISTA.
+      - run: cp firmware/ancora-c3/main/credenciais.h{.exemplo,}
+      - uses: espressif/esp-idf-ci-action@v1
+        with:
+          esp_idf_version: v5.1.2
+          target: esp32c3
+          path: firmware/ancora-c3
+
+  # ---------------------------------------------------------- firmware alvo
+  alvo:
+    name: firmware alvo (PlatformIO)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.13" }
+      - run: pip install platformio
+      # painel e campanha acham credenciais.h por -I ../ancora-c3/main: uma copia so.
+      - run: cp firmware/ancora-c3/main/credenciais.h{.exemplo,}
+      - uses: actions/cache@v4
+        with:
+          path: ~/.platformio
+          key: pio-${{ hashFiles('firmware/alvo-cyd/platformio.ini') }}
+      # O sitio_gerado.h versionado tem de COMPILAR, nao so existir. Se o gerador
+      # e o C divergirem, e aqui que aparece — nao com a placa na mao, no meio
+      # da campanha. (Que ele esteja em dia com o gerador, quem cobra e a suite.)
+      - run: pio run -d firmware/alvo-cyd -e cyd -e painel -e campanha

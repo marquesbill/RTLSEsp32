@@ -1,0 +1,194 @@
+{
+  "nome": "Galpao Teste",
+  "descricao": "Sitio SINTETICO de teste. Nao e lugar nenhum: existe so para provar que o sitio e dado. Escolhido para diferir do exemplo em tudo que costuma virar suposicao escondida: 4 ancoras em vez de 6 (posto 9, nao 20), planta larga em vez de alta (o giro da tela muda), 3 comodos, ancoras todas a 1,10 m e um emissor fixo com outro nome.",
+  "convencao": "metros; y para baixo",
+  "limites": {
+    "x": [
+      0.0,
+      12.0
+    ],
+    "y": [
+      0.0,
+      7.0
+    ],
+    "z": [
+      0.0,
+      3.0
+    ]
+  },
+  "recuo": 0.05,
+  "comodos": {
+    "oficina": [
+      [
+        0,
+        0
+      ],
+      [
+        7,
+        0
+      ],
+      [
+        7,
+        4
+      ],
+      [
+        0,
+        4
+      ]
+    ],
+    "deposito": [
+      [
+        7,
+        0
+      ],
+      [
+        12,
+        0
+      ],
+      [
+        12,
+        7
+      ],
+      [
+        7,
+        7
+      ]
+    ],
+    "copa": [
+      [
+        0,
+        4
+      ],
+      [
+        4,
+        4
+      ],
+      [
+        4,
+        7
+      ],
+      [
+        0,
+        7
+      ]
+    ]
+  },
+  "portas": {
+    "of-dep": [
+      "x",
+      7.0,
+      1.0,
+      2.2
+    ],
+    "of-copa": [
+      "y",
+      4.0,
+      1.0,
+      2.0
+    ]
+  },
+  "janelas": {
+    "J1": [
+      [
+        1.0,
+        0.0
+      ],
+      [
+        3.0,
+        0.0
+      ]
+    ]
+  },
+  "classes_parede": {
+    "alvenaria": {
+      "W_dB": 6.0,
+      "fonte": "ITU-R P.2040"
+    }
+  },
+  "classe_padrao": "alvenaria",
+  "ancoras": {
+    "A1": {
+      "pos": [
+        0.05,
+        2.0,
+        1.1
+      ],
+      "mac": "02:00:00:00:00:11",
+      "radio": 1,
+      "comodo": "oficina",
+      "tipo": "c3_sem_antena",
+      "yaw": 0.0,
+      "p_tx_dBm": 9.0
+    },
+    "A2": {
+      "pos": [
+        6.9,
+        1.0,
+        1.1
+      ],
+      "mac": "02:00:00:00:00:12",
+      "radio": 2,
+      "comodo": "oficina",
+      "tipo": "c3_sem_antena",
+      "yaw": 180.0,
+      "p_tx_dBm": 9.0
+    },
+    "A3": {
+      "pos": [
+        11.9,
+        4.0,
+        1.1
+      ],
+      "mac": "02:00:00:00:00:13",
+      "radio": 3,
+      "comodo": "deposito",
+      "tipo": "c3_sem_antena",
+      "yaw": 180.0,
+      "p_tx_dBm": 9.0
+    },
+    "A4": {
+      "pos": [
+        2.0,
+        6.9,
+        1.1
+      ],
+      "mac": "02:00:00:00:00:14",
+      "radio": 4,
+      "comodo": "copa",
+      "tipo": "c3_sem_antena",
+      "yaw": 0.0,
+      "p_tx_dBm": 9.0
+    }
+  },
+  "emissores_fixos": {
+    "ap_teto": {
+      "pos": [
+        6.0,
+        3.5,
+        2.8
+      ],
+      "tipo": "roteador",
+      "tipo_rf": "ap",
+      "nota": "so geometria; nao e ancora"
+    }
+  },
+  "radio": {
+    "f_Hz": 2440000000.0,
+    "ptx_niveis_dBm": [
+      9,
+      6,
+      3,
+      0,
+      -3,
+      -6,
+      -9,
+      -12
+    ],
+    "piso_dBm": -95,
+    "limiar_deteccao_dBm": -90.75,
+    "sigma_deteccao_dB": 7.75,
+    "piso_radio_dBm": -101,
+    "nota_piso": ""
+  },
+  "ancoras_nota": "MACs 02:...:1x sao localmente administrados (bit U/L) — nao existem."
+}
