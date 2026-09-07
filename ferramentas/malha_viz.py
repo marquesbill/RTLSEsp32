@@ -258,9 +258,18 @@ def svg(pares, vistos, tel, caminho, esc=105, mx=95, my=95, esp=None):
                ("pelas outras 5. Alvo real (antena", 0),
                ("e altura diferentes) ainda nao.", 0)]
     for t_, forte in linhas:
+        # peso e cor fora da f-string: ate a 3.11 o Python proibe barra invertida
+        # DENTRO da expressao de uma f-string (a PEP 701 so liberou na 3.12), e o
+        # piso deste repo e 3.10. Ler `f'{"a=\"b\"" if x else ""}'` compila aqui e
+        # explode em SyntaxError la — sem passar por nenhum teste, porque o modulo
+        # nem chega a carregar. Foi a CI em py3.10 que pegou.
+        peso = 'font-weight="bold"' if forte else ""
+        # cor_txt e nao `cor`: cor() e a funcao do modulo (linha ~98) usada
+        # ANTES nesta mesma funcao — atribuir a esse nome aqui a tornaria local
+        # e o uso anterior viraria UnboundLocalError.
+        cor_txt = T["txt"] if forte else T["fraco"]
         C.append(f'<text x="{lx:.0f}" y="{ly}" font-size="{13 if forte else 11.5}" '
-                 f'{"font-weight=\"bold\"" if forte else ""} '
-                 f'fill="{T["txt"] if forte else T["fraco"]}">{t_}</text>')
+                 f'{peso} fill="{cor_txt}">{t_}</text>')
         ly += 19 if forte else 16
     C.append("</svg>")
     tmp = caminho + ".tmp"

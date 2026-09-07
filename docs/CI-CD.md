@@ -149,12 +149,30 @@ sua máquina e não está versionado.
 
 ---
 
+### 3.1 O que a sua máquina não consegue checar sozinha
+
+Erro de **sintaxe** nova demais não aparece em teste nenhum: o módulo nem chega a
+carregar, e no seu interpretador ele é sintaxe válida. `ast.parse(...,
+feature_version=(3,10))` **não** resolve — medido: o tokenizador da 3.12+ aceita a
+f-string com barra invertida seja qual for o `feature_version`. Só um
+interpretador velho de verdade vê.
+
+Se tiver um instalado (3.11 serve: a regra da f-string é a mesma da 3.10):
+
+```bash
+for f in $(git ls-files '*.py'); do python3.11 -m py_compile "$f" || echo "QUEBRA: $f"; done
+```
+
+Se não tiver, é para isso que a linha `python: ["3.10", "3.13"]` da matriz existe.
+Ela é a única testemunha, e já pegou dois arquivos.
+
 ## 4. Ler uma falha
 
 | Sintoma na CI | Causa quase certa | Conserto |
 |---|---|---|
 | `suite (outro)` vermelho, `suite (exemplo)` verde | Número chumbado do sítio de exemplo | Derive de `P.ESCOLHIDAS` / `P.COMODOS`, nunca de literal |
 | `suite` vermelha nos dois, só em py3.10 | Sintaxe ou stdlib nova demais | Use o equivalente de 3.10 ou suba o piso na matriz **e** no INSTALL |
+| `SyntaxError: f-string expression part cannot include a backslash` | Barra invertida **dentro** da expressão de uma f-string; a PEP 701 só liberou isso na 3.12 | Calcule o valor numa variável antes da f-string. Aconteceu de verdade em `rtls/campanha.py` e `ferramentas/malha_viz.py` |
 | `gera_firmware_alvo.confere` falhou | Sítio mudou e o `.h` não foi regerado | `python3 ferramentas/gera_firmware_alvo.py --escreve` e commite o `.h` |
 | `confere_repo` → `LINK MORTO` | Doc aponta para arquivo que não existe (ainda) | Crie o arquivo ou tire o link — as duas são respostas válidas |
 | `confere_repo` → `VERSIONADO INDEVIDO` | `git add -f` passou por cima do `.gitignore` | `git rm --cached <arquivo>` — e veja a §6 se ele já foi *empurrado* |

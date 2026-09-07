@@ -85,8 +85,11 @@ def folha(caminho, esc=105, mx=95, my=95, PONTOS=None):
                ("metades MEDE o efeito do corpo, que e", 0),
                ("o que o V8 precisa e nao temos.", 0)]
     for t, forte in linhas:
+        # fora da f-string por causa do piso 3.10; ver ferramentas/malha_viz.py
+        peso = 'font-weight="bold"' if forte else ""
+        cor = "#111" if forte else "#555"
         C.append(f'<text x="{lx:.0f}" y="{ly}" font-size="{12.5 if forte else 11.5}" '
-                 f'{"font-weight=\"bold\"" if forte else ""} fill="{"#111" if forte else "#555"}">{t}</text>')
+                 f'{peso} fill="{cor}">{t}</text>')
         ly += 18 if forte else 15
     C.append("</svg>")
     open(caminho, "w").write("\n".join(C))
